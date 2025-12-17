@@ -1,0 +1,40 @@
+import { v2 as cloudinary } from 'cloudinary'
+
+cloudinary.config({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
+
+export async function uploadFile(
+  file: File | Buffer,
+  folder: string = 'lms-content'
+): Promise<{ url: string; publicId: string }> {
+  const buffer = file instanceof File ? Buffer.from(await file.arrayBuffer()) : file
+
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream(
+        {
+          folder,
+          resource_type: 'auto',
+        },
+        (error, result) => {
+          if (error) reject(error)
+          else
+            resolve({
+              url: result!.secure_url,
+              publicId: result!.public_id,
+            })
+        }
+      )
+      .end(buffer)
+  })
+}
+
+export async function deleteFile(publicId: string) {
+  return cloudinary.uploader.destroy(publicId)
+}
+
+export { cloudinary }
+

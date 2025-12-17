@@ -1,0 +1,417 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum Language {
+  EN
+  AS  // Assamese
+}
+
+model User {
+  id            String    @id @default(cuid())
+  clerkId       String    @unique // Clerk user ID
+  name          String
+  email         String    @unique
+  phone         String?
+  imageUrl      String?
+  role          UserRole  @default(STUDENT)
+  preferredLanguage Language @default(EN)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  studentProfile Student?
+  teacherProfile Teacher?
+  adminProfile   Admin?
+
+  @@index([clerkId])
+  @@index([email])
+  @@index([role])
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  name      String
+  phone     String
+  batchId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch       Batch?        @relation(fields: [batchId], references: [id])
+  attendances Attendance[]
+  testSubmissions TestSubmission[]
+  assignments AssignmentSubmission[]
+  
+  @@index([batchId])
+  @@index([phone])
+}
+
+model Teacher {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batchAssignments BatchTeacher[]
+  createdTests    Test[]
+  createdAssignments Assignment[]
+  createdContent  Content[]
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// BATCH & SUBJECT MANAGEMENT
+// ============================================
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  year      String   // e.g., "2024-2025"
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  batches Batch[]
+
+  @@unique([year])
+  @@index([isActive])
+}
+
+model Batch {
+  id            String   @id @default(cuid())
+  name          String   // e.g., "Class 8", "Class 9"
+  academicYearId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  academicYear    AcademicYear    @relation(fields: [academicYearId], references: [id])
+  students        Student[]
+  subjects        Subject[]
+  teachers        BatchTeacher[]
+  attendances     Attendance[]
+  tests           Test[]
+  assignments     Assignment[]
+  content         Content[]
+  notices         Notice[]
+
+  @@unique([name, academicYearId])
+  @@index([academicYearId])
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  batchId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  batch       Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  tests       Test[]
+  assignments Assignment[]
+  content     Content[]
+
+  @@unique([name, batchId])
+  @@index([batchId])
+}
+
+model BatchTeacher {
+  id        String   @id @default(cuid())
+  batchId   String
+  teacherId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  batch   Batch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, teacherId])
+  @@index([batchId])
+  @@index([teacherId])
+}
+
+// ============================================
+// CONTENT MANAGEMENT (PDFs, Images)
+// ============================================
+
+enum ContentType {
+  PDF
+  IMAGE
+  VIDEO
+}
+
+model Content {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  type        ContentType
+  fileUrl     String      // Cloudinary URL
+  fileSize    Int?        // in bytes
+  fileName    String?
+  batchId     String
+  subjectId   String?
+  chapterName String?     // Chapter-wise organization
+  language    Language    @default(EN)
+  isDownloadable Boolean  @default(true)
+  uploadedById String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  subject   Subject? @relation(fields: [subjectId], references: [id])
+  uploadedBy Teacher @relation(fields: [uploadedById], references: [id])
+
+  @@index([batchId])
+  @@index([subjectId])
+  @@index([chapterName])
+  @@index([language])
+}
+
+// ============================================
+// ATTENDANCE MANAGEMENT
+// ============================================
+
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  batchId   String
+  date      DateTime @db.Date
+  present   Boolean  @default(false)
+  remarks   String?
+  markedById String  // Teacher who marked
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  batch   Batch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, batchId, date])
+  @@index([studentId])
+  @@index([batchId])
+  @@index([date])
+}
+
+// ============================================
+// TEST & EXAM SYSTEM
+// ============================================
+
+enum TestType {
+  PRACTICE
+  WEEKLY
+  MONTHLY
+}
+
+enum QuestionType {
+  MCQ
+  SHORT_ANSWER
+}
+
+model Test {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  type          TestType
+  batchId       String
+  subjectId     String?
+  durationMinutes Int?    // Time limit
+  totalMarks    Int
+  createdById   String
+  isActive      Boolean   @default(true)
+  startDate     DateTime?
+  endDate       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  batch         Batch           @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  subject       Subject?        @relation(fields: [subjectId], references: [id])
+  createdBy     Teacher         @relation(fields: [createdById], references: [id])
+  questions     Question[]
+  submissions   TestSubmission[]
+
+  @@index([batchId])
+  @@index([subjectId])
+  @@index([createdById])
+  @@index([isActive])
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  testId      String
+  questionText String      // English
+  questionTextAssamese String? // Assamese
+  type        QuestionType
+  options     Json?        // For MCQ: {"A": "option1", "B": "option2", "correct": "A"}
+  correctAnswer String?    // For short answer
+  marks       Int          @default(1)
+  order       Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  test       Test              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  answers    Answer[]
+
+  @@index([testId])
+}
+
+model TestSubmission {
+  id            String   @id @default(cuid())
+  testId        String
+  studentId     String
+  submittedAt   DateTime @default(now())
+  totalMarks    Int
+  obtainedMarks Int
+  timeSpent     Int?     // in minutes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  test    Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@unique([testId, studentId])
+  @@index([testId])
+  @@index([studentId])
+}
+
+model Answer {
+  id              String   @id @default(cuid())
+  submissionId    String
+  questionId      String
+  answerText      String?
+  selectedOption  String?  // For MCQ
+  isCorrect       Boolean?
+  marksObtained   Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  // Relations
+  submission TestSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   Question       @relation(fields: [questionId], references: [id])
+
+  @@unique([submissionId, questionId])
+  @@index([submissionId])
+  @@index([questionId])
+}
+
+// ============================================
+// HOMEWORK & ASSIGNMENTS
+// ============================================
+
+model Assignment {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  batchId       String
+  subjectId     String?
+  fileUrl       String?   // PDF/image URL (optional)
+  dueDate       DateTime?
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  batch       Batch                @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  subject     Subject?             @relation(fields: [subjectId], references: [id])
+  createdBy   Teacher               @relation(fields: [createdById], references: [id])
+  submissions AssignmentSubmission[]
+
+  @@index([batchId])
+  @@index([subjectId])
+  @@index([createdById])
+}
+
+model AssignmentSubmission {
+  id            String    @id @default(cuid())
+  assignmentId String
+  studentId     String
+  fileUrl       String?   // Student's submission file
+  submittedAt   DateTime  @default(now())
+  isChecked     Boolean   @default(false)
+  marks         Int?
+  remarks       String?
+  checkedById   String?   // Teacher who checked
+  checkedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+}
+
+// ============================================
+// NOTICE BOARD
+// ============================================
+
+enum NoticeType {
+  GENERAL
+  EXAM_DATE
+  HOLIDAY
+  IMPORTANT
+}
+
+model Notice {
+  id          String     @id @default(cuid())
+  title       String
+  content     String
+  contentAssamese String? // Assamese content
+  type        NoticeType @default(GENERAL)
+  batchId     String?    // null = all batches
+  isActive    Boolean    @default(true)
+  priority    Int        @default(0) // Higher = more important
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  expiresAt   DateTime?
+
+  // Relations
+  batch Batch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([isActive])
+  @@index([type])
+}
+
