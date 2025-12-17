@@ -62,7 +62,7 @@ export const createTestSchema = z.object({
       questionText: z.string().min(1, 'Question text is required'),
       questionTextAssamese: z.string().optional(),
       type: z.enum(['MCQ', 'SHORT_ANSWER']),
-      options: z.record(z.any()).optional(),
+      options: z.record(z.string(), z.any()).optional(),
       correctAnswer: z.string().optional(),
       marks: z.number().positive().default(1),
       order: z.number().nonnegative(),

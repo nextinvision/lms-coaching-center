@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs'
 
 export default function Home() {
   return (
@@ -13,44 +12,43 @@ export default function Home() {
             Learning Management System for Offline Coaching Centers
           </p>
 
-          <SignedOut>
-            <div className="space-x-4">
-              <SignInButton mode="modal">
-                <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-                  Sign In
-                </button>
-              </SignInButton>
+          <div className="space-y-4">
+            <div className="flex gap-4 justify-center flex-wrap">
+              <Link
+                href="/sign-in"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/sign-up"
+                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
+              >
+                Sign Up
+              </Link>
             </div>
-          </SignedOut>
 
-          <SignedIn>
-            <div className="space-y-4">
-              <div className="flex items-center justify-center gap-4">
-                <UserButton afterSignOutUrl="/" />
-                <span className="text-gray-700">Welcome! Navigate to your dashboard</span>
-              </div>
-              <div className="flex gap-4 justify-center mt-6">
-                <Link
-                  href="/admin"
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
-                >
-                  Admin Dashboard
-                </Link>
-                <Link
-                  href="/teacher"
-                  className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition"
-                >
-                  Teacher Dashboard
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
-                >
-                  Student Dashboard
-                </Link>
-              </div>
+            <div className="mt-8 flex gap-4 justify-center flex-wrap">
+              <Link
+                href="/admin"
+                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
+              >
+                Admin Dashboard
+              </Link>
+              <Link
+                href="/teacher"
+                className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition"
+              >
+                Teacher Dashboard
+              </Link>
+              <Link
+                href="/dashboard"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
+              >
+                Student Dashboard
+              </Link>
             </div>
-          </SignedIn>
+          </div>
         </div>
       </div>
     </div>

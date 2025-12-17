@@ -1,17 +1,47 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import jwt from 'jsonwebtoken'
 
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/webhooks(.*)',
-])
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect()
+const publicRoutes = ['/', '/sign-in', '/sign-up', '/api/auth']
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Allow public routes
+  if (publicRoutes.some((route) => pathname === route || pathname.startsWith(route + '/'))) {
+    return NextResponse.next()
   }
-})
+
+  // Allow API auth routes
+  if (pathname.startsWith('/api/auth/')) {
+    return NextResponse.next()
+  }
+
+  // Check for auth token
+  const token = request.cookies.get('auth-token')?.value
+
+  if (!token) {
+    // Redirect to sign-in if not authenticated
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.redirect(new URL('/sign-in', request.url))
+  }
+
+  // Verify token
+  try {
+    jwt.verify(token, JWT_SECRET)
+    return NextResponse.next()
+  } catch {
+    // Invalid token, redirect to sign-in
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.redirect(new URL('/sign-in', request.url))
+  }
+}
 
 export const config = {
   matcher: [
@@ -19,4 +49,3 @@ export const config = {
     '/(api|trpc)(.*)',
   ],
 }
-
