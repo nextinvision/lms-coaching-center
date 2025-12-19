@@ -41,6 +41,9 @@ export const assets = {
     // Decorative
     sketch: '/assets/sktech.svg',
 
+    // Videos
+    heroBackgroundVideo: '/assets/lms-video.mp4',
+
     // Social Media Icons
     facebook_icon: '/assets/facebook_icon.svg',
     instagram_icon: '/assets/instagram_icon.svg',
