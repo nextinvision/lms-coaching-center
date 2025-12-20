@@ -88,7 +88,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole = null, userName }) => {
                         </button>
                     </div>
                 ) : (
-                    <Link href="/sign-in">
+                    <Link href="/login">
                         <button className="bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 transition-colors">
                             Sign In
                         </button>
@@ -128,7 +128,7 @@ const Navbar: React.FC<NavbarProps> = ({ userRole = null, userName }) => {
                         {userName?.charAt(0) || 'U'}
                     </button>
                 ) : (
-                    <Link href="/sign-in">
+                    <Link href="/login">
                         <Image
                             src={assets.user_icon}
                             alt="User"

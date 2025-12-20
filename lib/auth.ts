@@ -1,10 +1,11 @@
-import { prisma } from './prisma'
-import { UserRole } from '@prisma/client'
+// Legacy auth utilities - now using modular auth service
+// This file provides backward compatibility for existing code
 import { cookies } from 'next/headers'
-import jwt from 'jsonwebtoken'
+import { UserRole } from '@prisma/client'
+import { authService } from '@/modules/auth/services/authService'
+import type { AuthUser as ModularAuthUser } from '@/modules/auth/types/auth.types'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-
+// Re-export AuthUser type for backward compatibility
 export interface AuthUser {
   id: string
   email: string
@@ -13,44 +14,34 @@ export interface AuthUser {
   imageUrl?: string | null
 }
 
+// Convert modular AuthUser to legacy format
+function toLegacyAuthUser(user: ModularAuthUser): AuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    imageUrl: user.imageUrl,
+  }
+}
+
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get('auth-token')?.value
+    // Support both cookie names for backward compatibility
+    const token = cookieStore.get('auth_token')?.value || cookieStore.get('auth-token')?.value
 
     if (!token) {
       return null
     }
 
-    // Verify JWT token
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
-
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: {
-        studentProfile: {
-          include: {
-            batch: true,
-          },
-        },
-        teacherProfile: true,
-        adminProfile: true,
-      },
-    })
-
-    if (!user || !user.isActive) {
+    const user = await authService.getCurrentUser(token)
+    if (!user) {
       return null
     }
 
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      imageUrl: user.imageUrl,
-    }
-  } catch (error) {
+    return toLegacyAuthUser(user)
+  } catch {
     return null
   }
 }
@@ -83,13 +74,21 @@ export async function requireStudent(): Promise<AuthUser> {
   return requireRole('STUDENT')
 }
 
+// Legacy token creation - using JWT_SECRET for backward compatibility
+// Note: New code should use authService.login() instead
+import jwt from 'jsonwebtoken'
+
+const getJwtSecret = () => {
+  return process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production'
+}
+
 export function createToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' })
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: '7d' })
 }
 
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string }
+    return jwt.verify(token, getJwtSecret()) as { userId: string }
   } catch {
     return null
   }

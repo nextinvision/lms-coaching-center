@@ -1,28 +1,20 @@
-import { type ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+// Legacy utils - re-exporting from shared utils for backward compatibility
+// New code should import from '@/shared/utils/*' directly
+export { cn } from '@/shared/utils/cn'
+export { formatUtils } from '@/shared/utils/format'
+export { dateUtils } from '@/shared/utils/date'
+export { helpers } from '@/shared/utils/helpers'
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+// Legacy function wrappers for backward compatibility
+import { dateUtils } from '@/shared/utils/date'
+import { formatUtils } from '@/shared/utils/format'
 
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  return dateUtils.format(date, 'MMMM d, yyyy')
 }
 
 export function formatDateTime(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date
-  return d.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return dateUtils.formatDateTime(date)
 }
 
 export function calculateAttendancePercentage(
@@ -34,10 +26,6 @@ export function calculateAttendancePercentage(
 }
 
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+  return formatUtils.fileSize(bytes)
 }
 

@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production'
 
-const publicRoutes = ['/', '/sign-in', '/sign-up', '/api/auth']
+const publicRoutes = ['/', '/login', '/sign-in', '/sign-up', '/api/auth']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -19,15 +19,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check for auth token
-  const token = request.cookies.get('auth-token')?.value
+  // Check for auth token (support both cookie names for backward compatibility)
+  const token = request.cookies.get('auth_token')?.value || request.cookies.get('auth-token')?.value
 
   if (!token) {
-    // Redirect to sign-in if not authenticated
+    // Redirect to login if not authenticated
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    return NextResponse.redirect(new URL('/sign-in', request.url))
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Verify token
@@ -35,11 +35,11 @@ export function middleware(request: NextRequest) {
     jwt.verify(token, JWT_SECRET)
     return NextResponse.next()
   } catch {
-    // Invalid token, redirect to sign-in
+    // Invalid token, redirect to login
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    return NextResponse.redirect(new URL('/sign-in', request.url))
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 }
 
