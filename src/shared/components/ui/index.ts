@@ -7,6 +7,16 @@ export { Input } from './Input';
 export type { InputProps } from './Input';
 export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
+
+export { Pagination } from './Pagination';
+export type { PaginationProps } from './Pagination';
+
+export { Skeleton, SkeletonText, SkeletonCard, SkeletonTable } from './Skeleton';
+export type { SkeletonProps } from './Skeleton';
+
+export { ErrorBoundary } from './ErrorBoundary';
+export { ErrorDisplay } from './ErrorDisplay';
+export type { ErrorDisplayProps } from './ErrorDisplay';
 export { Select } from './Select';
 export type { SelectProps, SelectOption } from './Select';
 export { Checkbox } from './Checkbox';

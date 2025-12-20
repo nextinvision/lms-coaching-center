@@ -1,100 +1,123 @@
 # LMS Coaching Center
 
-A comprehensive Learning Management System designed for offline coaching centers in Tier-3 cities.
+A comprehensive Learning Management System designed for offline coaching centers in tier-3 cities with bilingual support (English + Assamese).
 
 ## Features
 
-- **Student Management**: Admin-controlled student creation and batch assignment
-- **Batch System**: Organize students by classes (Class 8, 9, 10, etc.)
-- **Content Sharing**: PDF notes, images, and recorded videos
-- **Attendance Tracking**: Daily attendance with batch-wise management
-- **Test System**: Practice, weekly, and monthly tests with auto-grading
-- **Assignments**: Homework management with submission tracking
-- **Multi-language**: English and Assamese support
-- **Notice Board**: Important announcements and updates
-- **Role-based Access**: Admin, Teacher, and Student dashboards
+### Core Features
+- ✅ **Student Management** - Complete student lifecycle management
+- ✅ **Batch & Subject Management** - Organize classes and subjects
+- ✅ **Content Management** - Upload and share PDFs, images, and videos
+- ✅ **Test & Assessment** - Create and take online tests with auto-grading
+- ✅ **Attendance Tracking** - Daily attendance marking and reports
+- ✅ **Homework System** - Assign and submit homework assignments
+- ✅ **Notice Board** - Important announcements and updates
+- ✅ **Reports** - Comprehensive attendance and performance reports
+- ✅ **Teacher Management** - Manage teachers and assignments
+- ✅ **Academic Year Management** - Organize by academic years
+
+### Technical Features
+- ✅ **Authentication** - JWT-based secure authentication
+- ✅ **Role-Based Access Control** - Student, Teacher, Admin roles
+- ✅ **Bilingual Support** - English and Assamese
+- ✅ **Responsive Design** - Works on mobile and desktop
+- ✅ **File Storage** - Supabase for PDFs, Cloudinary for images
+- ✅ **Performance Optimized** - Code splitting, lazy loading, caching
+- ✅ **Security** - Rate limiting, CSRF protection, input sanitization
+- ✅ **Error Handling** - Comprehensive error logging and handling
 
 ## Tech Stack
 
-- **Framework**: Next.js 14+ (App Router)
-- **Language**: TypeScript
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: Clerk
-- **File Storage**: Cloudinary
-- **Styling**: Tailwind CSS
-- **Forms**: React Hook Form + Zod
-- **State Management**: TanStack Query
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **Database:** PostgreSQL (Supabase)
+- **ORM:** Prisma
+- **State Management:** Zustand
+- **Styling:** Tailwind CSS
+- **File Storage:** Supabase Storage (PDFs), Cloudinary (Images)
+- **Authentication:** JWT
+- **Validation:** Zod
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
-- PostgreSQL database
-- Clerk account
+- Node.js 20.16.0 or higher
+- PostgreSQL database (Supabase recommended)
 - Cloudinary account
+- Supabase account
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd lms-coaching-center
 ```
 
-2. Install dependencies
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables
+3. Set up environment variables:
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
-Edit `.env.local` with your credentials:
-- `DATABASE_URL`: PostgreSQL connection string
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Clerk publishable key
-- `CLERK_SECRET_KEY`: Clerk secret key
-- `CLOUDINARY_*`: Cloudinary credentials
-
-4. Set up the database
-```bash
-# Generate Prisma Client
-npm run db:generate
-
-# Push schema to database
-npm run db:push
-
-# (Optional) Open Prisma Studio
-npm run db:studio
+4. Configure `.env` file:
+```env
+DATABASE_URL="postgresql://..."
+JWT_SECRET="your-secret-key"
+NEXT_PUBLIC_SUPABASE_URL="https://..."
+SUPABASE_SERVICE_ROLE_KEY="..."
+CLOUDINARY_CLOUD_NAME="..."
+CLOUDINARY_API_KEY="..."
+CLOUDINARY_API_SECRET="..."
 ```
 
-5. Run the development server
+5. Set up database:
+```bash
+npx prisma migrate dev
+npm run db:seed
+```
+
+6. Run development server:
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+7. Open [http://localhost:3000](http://localhost:3000)
 
 ## Project Structure
 
 ```
-lms-coaching-center/
-├── app/                    # Next.js App Router
-│   ├── (admin)/           # Admin routes
-│   ├── (teacher)/         # Teacher routes
-│   ├── (student)/         # Student routes
+src/
+├── app/                    # Next.js app router pages
+│   ├── (auth)/            # Auth routes
+│   ├── (dashboard)/       # Dashboard routes
 │   └── api/               # API routes
-├── components/            # React components
-├── lib/                   # Utility libraries
-│   ├── prisma.ts          # Prisma client
-│   ├── auth.ts            # Authentication utilities
-│   ├── cloudinary.ts      # File upload utilities
-│   └── utils.ts           # General utilities
-├── prisma/                # Database schema
-│   └── schema.prisma      # Prisma schema
-└── types/                 # TypeScript types
+├── modules/               # Feature modules
+│   ├── auth/             # Authentication
+│   ├── students/         # Student management
+│   ├── batches/          # Batch management
+│   ├── content/          # Content management
+│   ├── tests/            # Test system
+│   ├── attendance/       # Attendance tracking
+│   ├── homework/         # Homework system
+│   ├── notices/          # Notice board
+│   ├── teachers/         # Teacher management
+│   ├── academic-years/    # Academic year management
+│   └── reports/          # Reports
+├── shared/               # Shared components and utilities
+│   ├── components/       # UI components
+│   ├── hooks/            # Custom hooks
+│   └── utils/            # Utilities
+└── core/                 # Core functionality
+    ├── api/              # API utilities
+    ├── database/         # Database utilities
+    ├── middleware/       # Middleware
+    └── utils/            # Core utilities
 ```
 
 ## Available Scripts
@@ -103,43 +126,73 @@ lms-coaching-center/
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
-- `npm run db:generate` - Generate Prisma Client
-- `npm run db:push` - Push schema to database
-- `npm run db:migrate` - Create and run migrations
-- `npm run db:studio` - Open Prisma Studio
+- `npm run format` - Format code with Prettier
+- `npm run test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage
+- `npm run db:migrate` - Run database migrations
+- `npm run db:seed` - Seed database
 
-## Database Schema
+## Documentation
 
-The application uses PostgreSQL with Prisma ORM. Key models include:
+- [API Documentation](./API_DOCUMENTATION.md)
+- [Deployment Guide](./DEPLOYMENT.md)
+- [User Guide](./USER_GUIDE.md)
+- [Architecture](./ARCHITECTURE.md)
+- [Implementation Plan](./IMPLEMENTATION_PLAN.md)
 
-- **User**: Authentication and user profiles
-- **Student**: Student information and batch assignment
-- **Teacher**: Teacher profiles
-- **Admin**: Admin profiles
-- **Batch**: Class batches (Class 8, 9, 10, etc.)
-- **Subject**: Subjects assigned to batches
-- **Content**: PDFs, images, and videos
-- **Attendance**: Daily attendance records
-- **Test**: Tests and exams
-- **Question**: Test questions
-- **Assignment**: Homework assignments
-- **Notice**: Announcements and notices
+## Security
 
-## Authentication
+- Rate limiting on all endpoints
+- CSRF protection for state-changing requests
+- Input sanitization
+- Secure file uploads
+- JWT-based authentication
+- Role-based access control
 
-The application uses Clerk for authentication. User roles are managed in the database:
+## Performance
 
-- **ADMIN**: Full system access
-- **TEACHER**: Content, attendance, tests, assignments
-- **STUDENT**: View content, take tests, submit assignments
+- Code splitting and lazy loading
+- Image optimization with Cloudinary
+- Database query optimization
+- Caching strategies
+- Pagination for large lists
+
+## Testing
+
+- Unit tests for services
+- Integration tests for API routes
+- Component tests
+- E2E tests for critical flows
+
+## Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+
+Recommended platforms:
+- **Vercel** (Recommended for Next.js)
+- **Railway**
+- **Render**
 
 ## Contributing
 
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Write tests
+5. Submit a pull request
 
 ## License
 
-Private - All rights reserved
+[Your License Here]
+
+## Support
+
+For support, email support@example.com or open an issue in the repository.
+
+## Acknowledgments
+
+- Next.js team
+- Prisma team
+- All contributors
+
