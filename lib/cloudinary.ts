@@ -1,40 +1,35 @@
+// Legacy Cloudinary export - re-exporting from core storage
+// This file provides backward compatibility for existing code
+// New code should import from '@/core/storage/cloudinary' directly
+import { cloudinaryStorage } from '@/core/storage/cloudinary'
 import { v2 as cloudinary } from 'cloudinary'
 
-cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
+// Re-export cloudinary instance
+export { cloudinary }
 
+// Legacy function wrappers for backward compatibility
 export async function uploadFile(
   file: File | Buffer,
   folder: string = 'lms-content'
 ): Promise<{ url: string; publicId: string }> {
-  const buffer = file instanceof File ? Buffer.from(await file.arrayBuffer()) : file
-
-  return new Promise((resolve, reject) => {
-    cloudinary.uploader
-      .upload_stream(
-        {
-          folder,
-          resource_type: 'auto',
-        },
-        (error, result) => {
-          if (error) reject(error)
-          else
-            resolve({
-              url: result!.secure_url,
-              publicId: result!.public_id,
-            })
-        }
-      )
-      .end(buffer)
-  })
+  if (file instanceof File) {
+    const result = await cloudinaryStorage.uploadImage(file, folder)
+    return {
+      url: result.url,
+      publicId: result.publicId,
+    }
+  } else {
+    // Convert Buffer to File
+    const fileObj = new File([new Uint8Array(file)], 'upload', { type: 'application/octet-stream' })
+    const result = await cloudinaryStorage.uploadImage(fileObj, folder)
+    return {
+      url: result.url,
+      publicId: result.publicId,
+    }
+  }
 }
 
 export async function deleteFile(publicId: string) {
-  return cloudinary.uploader.destroy(publicId)
+  await cloudinaryStorage.deleteImage(publicId)
 }
-
-export { cloudinary }
 
