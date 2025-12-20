@@ -6,9 +6,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui
 import { useStudent } from '../hooks/useStudent';
 import { useAuth } from '@/modules/auth';
 import { useContentByBatch } from '@/modules/content';
+import { useHomeworkByBatch } from '@/modules/homework';
+import { useNotices } from '@/modules/notices';
 import { Loader } from '@/shared/components/ui/Loader';
 import { Progress } from '@/shared/components/ui/Progress';
-import { BookOpen, FileText, Clock, CheckCircle } from 'lucide-react';
+import { BookOpen, FileText, Clock, CheckCircle, ClipboardList, Bell } from 'lucide-react';
 import Link from 'next/link';
 
 export function StudentDashboard() {
@@ -27,6 +29,8 @@ export function StudentDashboard() {
     }, [student?.batchId]);
     
     const { content, isLoading: contentLoading } = useContentByBatch(batchId);
+    const { assignments: homework } = useHomeworkByBatch(batchId);
+    const { notices } = useNotices({ batchId: batchId || undefined, isActive: true });
     
     // Show loading if auth is still loading or student is loading
     if (authLoading || studentLoading) {
@@ -39,6 +43,8 @@ export function StudentDashboard() {
     }
 
     const recentContent = content?.slice(0, 5) || [];
+    const recentHomework = homework?.slice(0, 5) || [];
+    const recentNotices = notices?.slice(0, 5) || [];
 
     return (
         <div className="space-y-6">
@@ -147,6 +153,85 @@ export function StudentDashboard() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Recent Homework */}
+            {recentHomework.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <ClipboardList className="h-5 w-5 text-orange-600" />
+                                Recent Homework
+                            </CardTitle>
+                            <Link href="/student/homework" className="text-sm text-blue-600 hover:underline">
+                                View All
+                            </Link>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            {recentHomework.map((item) => (
+                                <Link
+                                    key={item.id}
+                                    href={`/student/homework/${item.id}`}
+                                    className="block p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium">{item.title}</p>
+                                            {item.dueDate && (
+                                                <p className="text-sm text-gray-600">
+                                                    Due: {new Date(item.dueDate).toLocaleDateString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Recent Notices */}
+            {recentNotices.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <Bell className="h-5 w-5 text-red-600" />
+                                Important Announcements
+                            </CardTitle>
+                            <Link href="/student/notices" className="text-sm text-blue-600 hover:underline">
+                                View All
+                            </Link>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            {recentNotices.map((notice) => (
+                                <Link
+                                    key={notice.id}
+                                    href={`/student/notices`}
+                                    className="block p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium">{notice.title}</p>
+                                            <p className="text-sm text-gray-600 line-clamp-2">
+                                                {notice.content}
+                                            </p>
+                                        </div>
+                                        <span className="text-xs text-gray-500">
+                                            {new Date(notice.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
