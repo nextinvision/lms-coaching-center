@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/Card';
-import { Tabs } from '@/shared/components/ui/Tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/Tabs';
 import { AttendanceReport } from './AttendanceReport';
 import { PerformanceReport } from './PerformanceReport';
 import { useReports } from '../hooks/useReports';
@@ -25,21 +25,6 @@ export function ReportsDashboard() {
         };
         loadStats();
     }, [fetchReportStats]);
-
-    const tabs = [
-        {
-            id: 'attendance',
-            label: 'Attendance Report',
-            icon: FileText,
-            content: <AttendanceReport />,
-        },
-        {
-            id: 'performance',
-            label: 'Performance Report',
-            icon: BarChart3,
-            content: <PerformanceReport />,
-        },
-    ];
 
     return (
         <div className="space-y-6">
@@ -80,11 +65,24 @@ export function ReportsDashboard() {
                 </div>
             )}
 
-            <Tabs
-                tabs={tabs}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-            />
+            <Tabs defaultValue="attendance" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                    <TabsTrigger value="attendance">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Attendance Report
+                    </TabsTrigger>
+                    <TabsTrigger value="performance">
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Performance Report
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="attendance">
+                    <AttendanceReport />
+                </TabsContent>
+                <TabsContent value="performance">
+                    <PerformanceReport />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

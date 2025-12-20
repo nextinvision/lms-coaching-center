@@ -131,7 +131,6 @@ export function TeacherProfile({ teacherId }: TeacherProfileProps) {
                             {teacher.assignedBatches.map((batch) => (
                                 <div key={batch.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <span className="font-medium">{batch.name}</span>
-                                    <Badge>{batch.academicYear.year}</Badge>
                                 </div>
                             ))}
                         </div>

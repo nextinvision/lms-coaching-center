@@ -34,7 +34,7 @@ export interface UpdateNoticeInput {
 }
 
 export interface NoticeFilters {
-    batchId?: string;
+    batchId?: string | null;
     type?: NoticeType;
     isActive?: boolean;
     search?: string;

@@ -64,13 +64,13 @@ export function TeacherCard({ teacher, showActions = true, onView, onEdit, onDel
             {showActions && (
                 <CardFooter className="flex gap-2">
                     {onView && (
-                        <Button variant="default" size="sm" onClick={() => onView(teacher.id)}>
+                        <Button variant="primary" size="sm" onClick={() => onView(teacher.id)}>
                             View
                         </Button>
                     )}
                     {!onView && (
                         <Link href={`/admin/teachers/${teacher.id}`}>
-                            <Button variant="default" size="sm">
+                            <Button variant="primary" size="sm">
                                 View
                             </Button>
                         </Link>

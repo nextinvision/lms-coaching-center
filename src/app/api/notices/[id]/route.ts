@@ -60,7 +60,13 @@ export async function PATCH(
         }
 
         const body = await request.json();
-        const data = updateNoticeSchema.parse(body);
+        const validatedData = updateNoticeSchema.parse(body);
+        
+        // Convert type string to NoticeType enum if present
+        const data: any = {
+            ...validatedData,
+            type: validatedData.type as any,
+        };
 
         const notice = await noticeService.update(id, data);
 

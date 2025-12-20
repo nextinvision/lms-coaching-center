@@ -31,7 +31,10 @@ export default function StudentHomeworkSubmissionPage({ params }: { params: Prom
         if (assignmentId && user?.studentProfile?.id) {
             const loadSubmission = async () => {
                 try {
-                    const response = await fetch(`/api/homework/student/${user.studentProfile.id}`);
+                    const studentId = user.studentProfile?.id;
+                    if (!studentId) return;
+                    
+                    const response = await fetch(`/api/homework/student/${studentId}`);
                     if (response.ok) {
                         const result = await response.json();
                         const mySubmission = result.data.find((s: any) => s.assignment.id === assignmentId);
@@ -48,7 +51,10 @@ export default function StudentHomeworkSubmissionPage({ params }: { params: Prom
         }
     }, [assignmentId, user?.studentProfile?.id]);
 
-    const handleFileUpload = async (file: File) => {
+    const handleFileUpload = async (files: File[]) => {
+        if (files.length === 0) return;
+        
+        const file = files[0];
         try {
             setIsSubmitting(true);
             const formData = new FormData();
@@ -113,7 +119,10 @@ export default function StudentHomeworkSubmissionPage({ params }: { params: Prom
             if (user?.studentProfile?.id) {
                 const loadSubmission = async () => {
                     try {
-                        const response = await fetch(`/api/homework/student/${user.studentProfile.id}`);
+                        const studentId = user.studentProfile?.id;
+                        if (!studentId) return;
+                        
+                        const response = await fetch(`/api/homework/student/${studentId}`);
                         if (response.ok) {
                             const result = await response.json();
                             const mySubmission = result.data.find((s: any) => s.assignment.id === assignmentId);
@@ -257,7 +266,7 @@ export default function StudentHomeworkSubmissionPage({ params }: { params: Prom
                                         <FileUpload
                                             onFileSelect={handleFileUpload}
                                             accept=".pdf,.jpg,.jpeg,.png"
-                                            maxSizeMB={10}
+                                            maxSize={10}
                                         />
                                         {fileUrl && (
                                             <p className="text-sm text-green-600 mt-2">

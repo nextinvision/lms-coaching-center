@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Select } from '@/shared/components/ui/Select';
-import { Table } from '@/shared/components/ui/Table';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/ui/Table';
 import { Loader } from '@/shared/components/ui/Loader';
 import { Download } from 'lucide-react';
 import { useReports } from '../hooks/useReports';
@@ -120,21 +120,28 @@ export function PerformanceReport() {
                                 <p className="text-sm text-gray-600">
                                     Average Performance: {batch.averagePerformance.toFixed(2)}%
                                 </p>
-                                <Table
-                                    columns={[
-                                        { key: 'studentName', label: 'Student Name' },
-                                        { key: 'totalTests', label: 'Total Tests' },
-                                        { key: 'averageMarks', label: 'Average Marks' },
-                                        { key: 'highestMarks', label: 'Highest' },
-                                        { key: 'lowestMarks', label: 'Lowest' },
-                                    ]}
-                                    data={batch.students.map((s) => ({
-                                        ...s,
-                                        averageMarks: `${s.averageMarks.toFixed(2)}%`,
-                                        highestMarks: `${s.highestMarks.toFixed(2)}%`,
-                                        lowestMarks: `${s.lowestMarks.toFixed(2)}%`,
-                                    }))}
-                                />
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Student Name</TableHead>
+                                            <TableHead>Total Tests</TableHead>
+                                            <TableHead>Average Marks</TableHead>
+                                            <TableHead>Highest</TableHead>
+                                            <TableHead>Lowest</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {batch.students.map((student) => (
+                                            <TableRow key={student.studentId}>
+                                                <TableCell>{student.studentName}</TableCell>
+                                                <TableCell>{student.totalTests}</TableCell>
+                                                <TableCell>{student.averageMarks.toFixed(2)}%</TableCell>
+                                                <TableCell>{student.highestMarks.toFixed(2)}%</TableCell>
+                                                <TableCell>{student.lowestMarks.toFixed(2)}%</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
                         ))}
                     </div>

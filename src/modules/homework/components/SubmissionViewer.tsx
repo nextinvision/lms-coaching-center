@@ -110,7 +110,7 @@ export function SubmissionViewer({ submission, onUpdate }: SubmissionViewerProps
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.open(submission.fileUrl, '_blank')}
+                                onClick={() => submission.fileUrl && window.open(submission.fileUrl, '_blank')}
                             >
                                 <Download className="h-4 w-4 mr-2" />
                                 Download
@@ -147,7 +147,7 @@ export function SubmissionViewer({ submission, onUpdate }: SubmissionViewerProps
                             onClick={handleCheck}
                             isLoading={isChecking}
                             disabled={isChecking}
-                            variant="default"
+                            variant="primary"
                         >
                             {isChecked ? <CheckCircle className="h-4 w-4 mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
                             {isChecked ? 'Mark as Checked' : 'Mark as Pending'}

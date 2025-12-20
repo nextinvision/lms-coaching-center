@@ -94,7 +94,10 @@ export function HomeworkForm({ assignment, onSuccess, onCancel }: HomeworkFormPr
         }
     };
 
-    const handleFileUpload = async (file: File) => {
+    const handleFileUpload = async (files: File[]) => {
+        if (files.length === 0) return;
+        
+        const file = files[0];
         try {
             setIsSubmitting(true);
             const formData = new FormData();
@@ -191,7 +194,7 @@ export function HomeworkForm({ assignment, onSuccess, onCancel }: HomeworkFormPr
                 <FileUpload
                     onFileSelect={handleFileUpload}
                     accept=".pdf,.jpg,.jpeg,.png"
-                    maxSizeMB={10}
+                    maxSize={10}
                 />
                 {fileUrl && (
                     <p className="text-sm text-green-600 mt-2">

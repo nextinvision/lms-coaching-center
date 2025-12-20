@@ -26,7 +26,7 @@ export async function GET(request: Request) {
         const search = searchParams.get('search') || undefined;
 
         const notices = await noticeService.getAll({
-            batchId: batchId === '' ? null : batchId,
+            batchId: batchId === '' ? undefined : batchId,
             type: type as any,
             isActive: isActive !== null ? isActive === 'true' : undefined,
             search,
@@ -59,7 +59,13 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const data = createNoticeSchema.parse(body);
+        const validatedData = createNoticeSchema.parse(body);
+        
+        // Convert type string to NoticeType enum
+        const data = {
+            ...validatedData,
+            type: validatedData.type as any,
+        };
 
         const notice = await noticeService.create(data);
 

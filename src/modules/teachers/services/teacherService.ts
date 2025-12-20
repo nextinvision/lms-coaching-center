@@ -70,7 +70,7 @@ export const teacherService = {
         if (!teacher) return null;
 
         // Get statistics
-        const assignedBatches = teacher.batchAssignments?.map((ba) => ba.batch) || [];
+        const assignedBatches = teacher.batchAssignments?.map((ba) => ba.batch).filter(Boolean) || [];
 
         // Count students in assigned batches
         const batchIds = assignedBatches.map((b) => b.id);

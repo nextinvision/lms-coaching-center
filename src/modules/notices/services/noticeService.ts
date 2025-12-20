@@ -52,11 +52,8 @@ export const noticeService = {
     async getAll(filters?: NoticeFilters): Promise<Notice[]> {
         const where: any = {};
 
-        if (filters?.batchId) {
-            where.batchId = filters.batchId;
-        } else if (filters?.batchId === null) {
-            // Get notices for all batches (batchId is null)
-            where.batchId = null;
+        if (filters?.batchId !== undefined) {
+            where.batchId = filters.batchId || null;
         }
 
         if (filters?.type) {

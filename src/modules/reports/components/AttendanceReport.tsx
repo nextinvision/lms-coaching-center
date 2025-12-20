@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui
 import { Button } from '@/shared/components/ui/Button';
 import { Input } from '@/shared/components/ui/Input';
 import { Select } from '@/shared/components/ui/Select';
-import { Table } from '@/shared/components/ui/Table';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/ui/Table';
 import { Loader } from '@/shared/components/ui/Loader';
 import { Download, FileText } from 'lucide-react';
 import { useReports } from '../hooks/useReports';
@@ -120,19 +120,28 @@ export function AttendanceReport() {
                                 <p className="text-sm text-gray-600">
                                     Average Attendance: {batch.averageAttendance.toFixed(2)}%
                                 </p>
-                                <Table
-                                    columns={[
-                                        { key: 'studentName', label: 'Student Name' },
-                                        { key: 'totalDays', label: 'Total Days' },
-                                        { key: 'presentDays', label: 'Present' },
-                                        { key: 'absentDays', label: 'Absent' },
-                                        { key: 'attendancePercentage', label: 'Percentage' },
-                                    ]}
-                                    data={batch.students.map((s) => ({
-                                        ...s,
-                                        attendancePercentage: `${s.attendancePercentage.toFixed(2)}%`,
-                                    }))}
-                                />
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Student Name</TableHead>
+                                            <TableHead>Total Days</TableHead>
+                                            <TableHead>Present</TableHead>
+                                            <TableHead>Absent</TableHead>
+                                            <TableHead>Percentage</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {batch.students.map((student) => (
+                                            <TableRow key={student.studentId}>
+                                                <TableCell>{student.studentName}</TableCell>
+                                                <TableCell>{student.totalDays}</TableCell>
+                                                <TableCell>{student.presentDays}</TableCell>
+                                                <TableCell>{student.absentDays}</TableCell>
+                                                <TableCell>{student.attendancePercentage.toFixed(2)}%</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </div>
                         ))}
                     </div>
