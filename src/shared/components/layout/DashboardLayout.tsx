@@ -4,7 +4,7 @@
 import React from 'react';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
-import { useAuth } from '@/modules/auth';
+import { useAuthStore } from '@/modules/auth';
 import { Loader } from '../ui/Loader';
 
 export interface DashboardLayoutProps {
@@ -12,7 +12,8 @@ export interface DashboardLayoutProps {
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-    const { isAuthenticated, isLoading } = useAuth();
+    // Use store directly to avoid triggering checkAuth multiple times
+    const { isAuthenticated, isLoading } = useAuthStore();
 
     if (isLoading) {
         return (

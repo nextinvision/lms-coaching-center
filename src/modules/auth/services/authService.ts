@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '@/core/database/prisma';
 import type { LoginCredentials, LoginResponse, AuthUser } from '../types/auth.types';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
 
 export const authService = {

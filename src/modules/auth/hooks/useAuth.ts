@@ -1,10 +1,13 @@
 // useAuth Hook
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { hasPermission, hasAnyPermission, hasAllPermissions } from '../utils/permissions';
 import type { Permission } from '../types/auth.types';
+
+// Global initialization flag to ensure auth is only initialized once
+let globalAuthInitialized = false;
 
 export function useAuth() {
     const {
@@ -17,12 +20,27 @@ export function useAuth() {
         logout,
         checkAuth,
         clearError,
+        initializeAuth,
+        isInitialized,
     } = useAuthStore();
 
-    // Check auth on mount
+    const hasInitializedRef = useRef(false);
+
+    // Initialize auth globally once
     useEffect(() => {
-        checkAuth();
-    }, [checkAuth]);
+        // Only initialize once globally and if not already initialized
+        if (!globalAuthInitialized && !hasInitializedRef.current && !isInitialized) {
+            hasInitializedRef.current = true;
+            globalAuthInitialized = true;
+            initializeAuth().finally(() => {
+                // Reset global flag after a delay to allow re-initialization on page reload
+                setTimeout(() => {
+                    globalAuthInitialized = false;
+                }, 1000);
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Run only once on mount
 
     // Permission helpers
     const can = (permission: Permission): boolean => {
@@ -58,6 +76,7 @@ export function useAuth() {
         logout,
         checkAuth,
         clearError,
+        initializeAuth,
 
         // Permission helpers
         can,
