@@ -15,6 +15,7 @@ import type { CreateContentInput } from '../types/content.types';
 import { youtubeUtils } from '@/core/storage/youtube';
 import { requestDeduplication } from '@/core/utils/requestDeduplication';
 import { Upload, X } from 'lucide-react';
+import useTranslation from '@/core/i18n/useTranslation';
 
 interface ContentUploadProps {
     batchId: string;
@@ -35,6 +36,7 @@ export function ContentUpload({
     const [contentType, setContentType] = useState<'PDF' | 'IMAGE' | 'VIDEO'>('PDF');
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const { showToast } = useToast();
+    const { t } = useTranslation();
 
     const {
         register,
@@ -107,7 +109,7 @@ export function ContentUpload({
             setValue('fileSize', file.size);
 
             showToast({
-                message: 'File uploaded successfully',
+                message: t('content.fileUploaded'),
                 variant: 'success',
             });
         } catch (error) {
@@ -123,7 +125,7 @@ export function ContentUpload({
     const handleYouTubeUrl = async () => {
         if (!youtubeUrl || !youtubeUrl.trim()) {
             showToast({
-                message: 'Please enter a YouTube URL',
+                message: t('content.enterUrl'),
                 variant: 'error',
             });
             return;
@@ -138,7 +140,7 @@ export function ContentUpload({
 
             if (!videoInfo.isValid || !videoInfo.videoId) {
                 showToast({
-                    message: 'Invalid YouTube URL. Please use a valid YouTube video URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID)',
+                    message: t('content.invalidUrl'),
                     variant: 'error',
                 });
                 return;
@@ -155,13 +157,13 @@ export function ContentUpload({
 
             // Show success feedback
             showToast({
-                message: `YouTube URL validated successfully! Video ID: ${videoInfo.videoId}`,
+                message: `${t('content.validated')}! Video ID: ${videoInfo.videoId}`,
                 variant: 'success',
             });
         } catch (error) {
             console.error('YouTube URL validation error:', error);
             showToast({
-                message: 'Failed to validate YouTube URL. Please check the URL and try again.',
+                message: t('content.invalidUrl'),
                 variant: 'error',
             });
         }
@@ -170,7 +172,7 @@ export function ContentUpload({
     const onSubmit = async (data: CreateContentInput) => {
         if (!uploadedFileUrl) {
             showToast({
-                message: 'Please upload a file or provide a YouTube URL',
+                message: t('content.uploadOrUrl'),
                 variant: 'error',
             });
             return;
@@ -194,7 +196,7 @@ export function ContentUpload({
             }
 
             showToast({
-                message: 'Content created successfully',
+                message: t('content.contentCreated'),
                 variant: 'success',
             });
 
@@ -218,30 +220,30 @@ export function ContentUpload({
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-                label="Title"
+                label={t('content.title')}
                 {...register('title')}
                 error={errors.title?.message}
                 required
             />
 
             <Textarea
-                label="Description"
+                label={t('content.description')}
                 {...register('description')}
                 error={errors.description?.message}
                 rows={3}
             />
 
             <Select
-                label="Content Type"
+                label={t('content.contentType')}
                 {...register('type')}
                 onChange={(e) => {
                     setContentType(e.target.value as 'PDF' | 'IMAGE' | 'VIDEO');
                     setValue('type', e.target.value as 'PDF' | 'IMAGE' | 'VIDEO');
                 }}
                 options={[
-                    { label: 'PDF', value: 'PDF' },
-                    { label: 'Image', value: 'IMAGE' },
-                    { label: 'Video (YouTube)', value: 'VIDEO' },
+                    { label: t('content.pdf'), value: 'PDF' },
+                    { label: t('content.image'), value: 'IMAGE' },
+                    { label: t('content.videoYouTube'), value: 'VIDEO' },
                 ]}
                 error={errors.type?.message}
                 required
@@ -250,7 +252,7 @@ export function ContentUpload({
             {contentType !== 'VIDEO' && (
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Upload File
+                        {t('content.uploadFile')}
                     </label>
                     <FileUpload
                         accept={contentType === 'PDF' ? '.pdf' : 'image/*'}
@@ -278,7 +280,7 @@ export function ContentUpload({
             {contentType === 'VIDEO' && (
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        YouTube URL
+                        {t('content.youtubeUrl')}
                     </label>
                     <div className="flex gap-2">
                         <Input
@@ -291,7 +293,7 @@ export function ContentUpload({
                                     setValue('fileUrl', '');
                                 }
                             }}
-                            placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                            placeholder={t('content.pasteYoutubeUrl')}
                             className="flex-1"
                         />
                         <Button 
@@ -299,7 +301,7 @@ export function ContentUpload({
                             onClick={handleYouTubeUrl}
                             disabled={!youtubeUrl.trim() || isSubmitting}
                         >
-                            Validate
+                            {t('content.validate')}
                         </Button>
                     </div>
                     {uploadedFileUrl && youtubeUtils.getVideoInfo(youtubeUrl).isValid && (
@@ -307,7 +309,7 @@ export function ContentUpload({
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm text-green-700 font-medium">
-                                        ✓ YouTube URL validated successfully
+                                        ✓ {t('content.validated')}
                                     </span>
                                 </div>
                                 <button
@@ -331,33 +333,33 @@ export function ContentUpload({
                         </div>
                     )}
                     <p className="text-xs text-gray-500 mt-1">
-                        Supported formats: youtube.com/watch?v=..., youtu.be/..., youtube.com/embed/...
+                        {t('content.supportedFormats')}
                     </p>
                 </div>
             )}
 
             <Select
-                label="Subject (Optional)"
+                label={`${t('content.subject')} (${t('common.select')})`}
                 {...register('subjectId')}
                 options={[
-                    { label: 'No Subject', value: '' },
+                    { label: t('content.noSubject'), value: '' },
                     ...subjectOptions,
                 ]}
                 error={errors.subjectId?.message}
             />
 
             <Input
-                label="Chapter Name (Optional)"
+                label={`${t('content.chapterName')} (${t('common.select')})`}
                 {...register('chapterName')}
                 error={errors.chapterName?.message}
             />
 
             <Select
-                label="Language"
+                label={t('content.language')}
                 {...register('language')}
                 options={[
-                    { label: 'English', value: 'EN' },
-                    { label: 'Assamese', value: 'AS' },
+                    { label: t('content.english'), value: 'EN' },
+                    { label: t('content.assamese'), value: 'AS' },
                 ]}
                 error={errors.language?.message}
                 required
@@ -366,11 +368,11 @@ export function ContentUpload({
             <div className="flex gap-4 pt-4">
                 <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
                     <Upload className="h-4 w-4 mr-2" />
-                    Upload Content
+                    {t('content.uploadContent')}
                 </Button>
                 {onCancel && (
                     <Button type="button" variant="outline" onClick={onCancel}>
-                        Cancel
+                        {t('common.cancel')}
                     </Button>
                 )}
             </div>

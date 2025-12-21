@@ -23,7 +23,7 @@ interface AuthState {
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
     clearError: () => void;
-    checkAuth: () => Promise<void>;
+    checkAuth: (forceRefresh?: boolean) => Promise<void>;
     initializeAuth: () => Promise<void>; // Initialize auth once globally
 }
 
@@ -168,7 +168,7 @@ export const useAuthStore = create<AuthState>()(
                 set({ isInitialized: true });
             },
 
-            checkAuth: async () => {
+            checkAuth: async (forceRefresh = false) => {
                 try {
                     // Check if we're on the client side
                     if (typeof window === 'undefined') {
@@ -177,19 +177,24 @@ export const useAuthStore = create<AuthState>()(
 
                     const state = get();
                     
-                    // If there's already a checkAuth in progress, return that promise
-                    if (state.checkAuthPromise) {
+                    // If forcing refresh, clear any existing promise
+                    if (forceRefresh) {
+                        set({ checkAuthPromise: null });
+                    }
+                    
+                    // If there's already a checkAuth in progress and not forcing refresh, return that promise
+                    if (state.checkAuthPromise && !forceRefresh) {
                         return state.checkAuthPromise;
                     }
 
-                    // If user just logged in (within last 5 seconds), skip checkAuth
+                    // If user just logged in (within last 5 seconds) and not forcing refresh, skip checkAuth
                     // This prevents race condition where checkAuth runs before cookie is available
-                    if (state.lastLoginTime && Date.now() - state.lastLoginTime < 5000) {
+                    if (state.lastLoginTime && Date.now() - state.lastLoginTime < 5000 && !forceRefresh) {
                         return;
                     }
 
-                    // If already authenticated and session is valid, skip check
-                    if (state.isAuthenticated && state.session && state.user) {
+                    // If already authenticated and session is valid, and not forcing refresh, skip check
+                    if (state.isAuthenticated && state.session && state.user && !forceRefresh) {
                         // Handle Date deserialization from localStorage
                         const expiresAt = state.session.expiresAt instanceof Date 
                             ? state.session.expiresAt 

@@ -11,11 +11,13 @@ import { Menu, LogOut } from 'lucide-react';
 import { useUIStore } from '@/shared/store/uiStore';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useStudent } from '@/modules/students';
+import useTranslation from '@/core/i18n/useTranslation';
 
 export const Navbar: React.FC = () => {
     const { user, logout, isAuthenticated } = useAuth();
     const { language, setLanguage } = useLanguageStore();
     const { toggleSidebar } = useUIStore();
+    const { t } = useTranslation();
 
     // Get student batchId for filtering notices (only for students)
     const studentId = useMemo(() => user?.studentProfile?.id || null, [user?.studentProfile?.id]);
@@ -78,7 +80,7 @@ export const Navbar: React.FC = () => {
                                     <button
                                         onClick={handleLogout}
                                         className="p-2 rounded-lg hover:bg-gray-100"
-                                        title="Logout"
+                                        title={t('common.logout')}
                                     >
                                         <LogOut className="h-5 w-5 text-gray-600" />
                                     </button>
@@ -88,7 +90,7 @@ export const Navbar: React.FC = () => {
 
                         {!isAuthenticated && (
                             <Link href="/login">
-                                <Button size="sm">Login</Button>
+                                <Button size="sm">{t('common.login')}</Button>
                             </Link>
                         )}
                     </div>

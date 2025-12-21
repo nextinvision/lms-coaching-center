@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/modules/auth';
 import { useUIStore } from '@/shared/store/uiStore';
 import { cn } from '@/shared/utils/cn';
+import useTranslation from '@/core/i18n/useTranslation';
 import {
     LayoutDashboard,
     BookOpen,
@@ -42,75 +43,76 @@ const getDashboardUrl = (role: string): string => {
     }
 };
 
-const navItems: NavItem[] = [
+// Navigation items will be generated dynamically with translations
+const getNavItems = (t: (key: string) => string): NavItem[] => [
     {
-        label: 'Dashboard',
+        label: t('student.dashboard'),
         href: '/dashboard', // Will be replaced dynamically
         icon: <LayoutDashboard className="h-5 w-5" />,
         roles: ['STUDENT', 'TEACHER', 'ADMIN'],
     },
     {
-        label: 'Notes',
+        label: t('student.notes'),
         href: '/student/notes',
         icon: <BookOpen className="h-5 w-5" />,
         roles: ['STUDENT'],
     },
     {
-        label: 'Tests',
+        label: t('student.tests'),
         href: '/student/tests',
         icon: <FileText className="h-5 w-5" />,
         roles: ['STUDENT'],
     },
     {
-        label: 'Homework',
+        label: t('student.homework'),
         href: '/student/homework',
         icon: <ClipboardList className="h-5 w-5" />,
         roles: ['STUDENT'],
     },
     {
-        label: 'Attendance',
+        label: t('student.attendance'),
         href: '/student/attendance',
         icon: <Calendar className="h-5 w-5" />,
         roles: ['STUDENT'],
     },
     {
-        label: 'Content',
+        label: t('teacher.content'),
         href: '/teacher/content',
         icon: <FolderOpen className="h-5 w-5" />,
         roles: ['TEACHER'],
     },
     {
-        label: 'Students',
+        label: t('teacher.students'),
         href: '/teacher/students',
         icon: <Users className="h-5 w-5" />,
         roles: ['TEACHER'],
     },
     {
-        label: 'Students',
+        label: t('admin.students'),
         href: '/admin/students',
         icon: <Users className="h-5 w-5" />,
         roles: ['ADMIN'],
     },
     {
-        label: 'Teachers',
+        label: t('admin.teachers'),
         href: '/admin/teachers',
         icon: <UserCog className="h-5 w-5" />,
         roles: ['ADMIN'],
     },
     {
-        label: 'Notices',
+        label: t('admin.notices'),
         href: '/admin/notices',
         icon: <Bell className="h-5 w-5" />,
         roles: ['ADMIN'],
     },
     {
-        label: 'Reports',
+        label: t('admin.reports'),
         href: '/admin/reports',
         icon: <BarChart3 className="h-5 w-5" />,
         roles: ['ADMIN'],
     },
     {
-        label: 'Settings',
+        label: t('common.settings'),
         href: '/settings',
         icon: <Settings className="h-5 w-5" />,
         roles: ['STUDENT', 'TEACHER', 'ADMIN'],
@@ -121,7 +123,9 @@ export const Sidebar: React.FC = () => {
     const pathname = usePathname();
     const { user } = useAuth();
     const { sidebarOpen, setSidebarOpen } = useUIStore();
+    const { t } = useTranslation();
 
+    const navItems = getNavItems(t);
     const filteredNavItems = navItems.filter((item) =>
         user ? item.roles.includes(user.role) : false
     );
@@ -147,7 +151,8 @@ export const Sidebar: React.FC = () => {
                     <ul className="space-y-1">
                         {filteredNavItems.map((item) => {
                             // Get dynamic href for Dashboard based on user role
-                            const href = item.label === 'Dashboard' && user ? getDashboardUrl(user.role) : item.href;
+                            const isDashboard = item.label === t('student.dashboard') || item.label === t('teacher.dashboard') || item.label === t('admin.dashboard');
+                            const href = isDashboard && user ? getDashboardUrl(user.role) : item.href;
                             const isActive = pathname === href || pathname.startsWith(href + '/');
 
                             return (
