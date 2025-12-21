@@ -10,16 +10,31 @@ export async function POST(request: Request) {
 
         const result = await authService.login(credentials);
 
-        const response = NextResponse.json({
-            success: true,
-            data: {
-                user: result.user,
-                token: result.token,
-                expiresAt: result.expiresAt,
-            },
-        });
+        // Determine redirect URL based on user role
+        let redirectUrl = '/';
+        switch (result.user.role) {
+            case 'STUDENT':
+                redirectUrl = '/student/dashboard';
+                break;
+            case 'TEACHER':
+                redirectUrl = '/teacher/dashboard';
+                break;
+            case 'ADMIN':
+                redirectUrl = '/admin/dashboard';
+                break;
+            default:
+                redirectUrl = '/';
+        }
 
-        // Set HTTP-only cookie with environment-agnostic configuration
+        // Get the origin from request to build absolute URL for redirect
+        const origin = request.headers.get('origin') || 
+                      request.headers.get('referer')?.split('/').slice(0, 3).join('/') ||
+                      `https://${request.headers.get('host') || 'localhost:3000'}`;
+        
+        const absoluteRedirectUrl = redirectUrl.startsWith('http') 
+            ? redirectUrl 
+            : `${origin}${redirectUrl}`;
+
         // Detect if we're in production by checking for HTTPS or production URL
         const isProduction = 
             process.env.NODE_ENV === 'production' || 
@@ -27,6 +42,12 @@ export async function POST(request: Request) {
             (typeof request.headers.get('host') === 'string' && 
              !request.headers.get('host')?.includes('localhost'));
 
+        // Create redirect response with cookie set
+        const response = NextResponse.redirect(new URL(absoluteRedirectUrl), {
+            status: 307, // Temporary redirect - preserves POST method if needed
+        });
+
+        // Set HTTP-only cookie with environment-agnostic configuration
         response.cookies.set('auth_token', result.token, {
             httpOnly: true,
             secure: isProduction, // Use HTTPS in production
@@ -38,6 +59,7 @@ export async function POST(request: Request) {
 
         return response;
     } catch (error) {
+        // For errors, return JSON response (don't redirect)
         if (error instanceof z.ZodError) {
             return NextResponse.json(
                 { success: false, error: error.issues[0]?.message || 'Validation error' },
