@@ -44,6 +44,8 @@ export const useAuthStore = create<AuthState>()(
                     set({ isLoading: true, error: null });
 
                     // Call API endpoint instead of service directly (Prisma can't run in browser)
+                    // Note: The API now returns a redirect, so we handle it in useLogin hook
+                    // This function is kept for backward compatibility but redirect handling is in useLogin
                     const response = await fetch('/api/auth/login', {
                         method: 'POST',
                         headers: {
@@ -51,7 +53,15 @@ export const useAuthStore = create<AuthState>()(
                         },
                         credentials: 'include',
                         body: JSON.stringify(credentials),
+                        redirect: 'manual', // Don't automatically follow redirects
                     });
+
+                    // If redirect, the useLogin hook will handle it
+                    if (response.type === 'opaqueredirect' || response.status === 307 || response.status === 302) {
+                        // Redirect will be handled by useLogin hook
+                        set({ isLoading: false });
+                        return;
+                    }
 
                     const data = await response.json();
 
