@@ -19,13 +19,21 @@ export async function POST(request: Request) {
             },
         });
 
-        // Set HTTP-only cookie
+        // Set HTTP-only cookie with environment-agnostic configuration
+        // Detect if we're in production by checking for HTTPS or production URL
+        const isProduction = 
+            process.env.NODE_ENV === 'production' || 
+            process.env.VERCEL_ENV === 'production' ||
+            (typeof request.headers.get('host') === 'string' && 
+             !request.headers.get('host')?.includes('localhost'));
+
         response.cookies.set('auth_token', result.token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            secure: isProduction, // Use HTTPS in production
+            sameSite: 'lax', // Allows cookies to be sent on top-level navigations
             maxAge: 60 * 60 * 24 * 7, // 7 days
             path: '/',
+            // Don't set domain - let browser handle it automatically for cross-platform compatibility
         });
 
         return response;

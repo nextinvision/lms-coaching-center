@@ -16,22 +16,33 @@ export function useLogin() {
             setLocalError(null);
             await loginAction(credentials);
 
-            // Redirect based on role
+            // Get user after login
             const user = useAuthStore.getState().user;
             if (user) {
+                // Determine redirect URL based on role
+                let redirectUrl = '/';
                 switch (user.role) {
                     case 'STUDENT':
-                        router.push('/student/dashboard');
+                        redirectUrl = '/student/dashboard';
                         break;
                     case 'TEACHER':
-                        router.push('/teacher/dashboard');
+                        redirectUrl = '/teacher/dashboard';
                         break;
                     case 'ADMIN':
-                        router.push('/admin/dashboard');
+                        redirectUrl = '/admin/dashboard';
                         break;
                     default:
-                        router.push('/');
+                        redirectUrl = '/';
                 }
+
+                // Use window.location.href for hard navigation to ensure cookie is sent
+                // This works reliably across all deployment platforms (Vercel, Railway, etc.)
+                // Small delay to ensure cookie is set in browser before navigation
+                setTimeout(() => {
+                    if (typeof window !== 'undefined') {
+                        window.location.href = redirectUrl;
+                    }
+                }, 100);
             }
         } catch (err) {
             setLocalError((err as Error).message);
