@@ -3,30 +3,24 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStudentStore } from '../store/studentStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
 import type { StudentWithStats } from '../types/student.types';
 
 export function useStudent(studentId: string | null) {
     const { currentStudent, isLoading, error, setCurrentStudent, setLoading, setError } =
         useStudentStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFetchedIdRef = useRef<string | null>(null);
+    const hasFetchedRef = useRef<string | null>(null);
     const isFetchingRef = useRef(false); // Use ref to track fetching state
 
     const fetchStudent = useCallback(async (id: string) => {
-        // Don't fetch if already fetching the same student
-        if (lastFetchedIdRef.current === id && (isFetchingRef.current || isLoading)) {
+        // Prevent duplicate calls for the same student
+        if (hasFetchedRef.current === id && isFetchingRef.current) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFetchedIdRef.current = id;
+        hasFetchedRef.current = id;
         isFetchingRef.current = true; // Set ref immediately
 
         try {
@@ -34,21 +28,19 @@ export function useStudent(studentId: string | null) {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`/api/students/${id}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/students/${id}`;
+
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: StudentWithStats }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch student');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
-                setCurrentStudent(result.data as StudentWithStats);
+                setCurrentStudent(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            hasFetchedRef.current = null; // Reset on error to allow retry
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -58,24 +50,24 @@ export function useStudent(studentId: string | null) {
                 isFetchingRef.current = false; // Clear ref
             }
         }
-    }, [isLoading, setCurrentStudent, setLoading, setError]); // Removed isFetching from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // isLoading/isFetching cause infinite loops, studentId is handled separately
+    }, [setCurrentStudent, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
-        
+
         if (studentId) {
+            hasFetchedRef.current = null; // Reset when studentId changes
             fetchStudent(studentId);
         } else {
             setCurrentStudent(null);
-            lastFetchedIdRef.current = null;
+            hasFetchedRef.current = null;
         }
 
         return () => {
             isMountedRef.current = false;
             isFetchingRef.current = false; // Reset on unmount
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [studentId, fetchStudent, setCurrentStudent]);
 
@@ -83,7 +75,12 @@ export function useStudent(studentId: string | null) {
         student: currentStudent,
         isLoading: isLoading || isFetching,
         error,
-        refetch: () => studentId && fetchStudent(studentId),
+        refetch: () => {
+            if (studentId) {
+                hasFetchedRef.current = null;
+                return fetchStudent(studentId);
+            }
+        },
     };
 }
 

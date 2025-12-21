@@ -2,19 +2,49 @@
 export const youtubeUtils = {
     /**
      * Extract video ID from YouTube URL
+     * Supports multiple YouTube URL formats:
+     * - https://www.youtube.com/watch?v=VIDEO_ID
+     * - https://youtu.be/VIDEO_ID
+     * - https://www.youtube.com/embed/VIDEO_ID
+     * - https://www.youtube.com/v/VIDEO_ID
+     * - https://m.youtube.com/watch?v=VIDEO_ID
+     * - https://youtube.com/watch?v=VIDEO_ID (without www)
      */
     extractVideoId(url: string): string | null {
+        if (!url || typeof url !== 'string') {
+            return null;
+        }
+
+        // Clean the URL - remove whitespace
+        const cleanUrl = url.trim();
+
+        // Comprehensive patterns for all YouTube URL formats
         const patterns = [
-            /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-            /youtube\.com\/embed\/([^&\n?#]+)/,
-            /youtube\.com\/v\/([^&\n?#]+)/,
+            // Standard watch URL: youtube.com/watch?v=VIDEO_ID
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+            // Mobile URL: m.youtube.com/watch?v=VIDEO_ID
+            /m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+            // Short URL: youtu.be/VIDEO_ID
+            /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+            // Embed URL: youtube.com/embed/VIDEO_ID
+            /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+            // Direct video URL: youtube.com/v/VIDEO_ID
+            /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+            // URL with additional parameters
+            /[?&]v=([a-zA-Z0-9_-]{11})/,
         ];
 
         for (const pattern of patterns) {
-            const match = url.match(pattern);
-            if (match && match[1]) {
+            const match = cleanUrl.match(pattern);
+            if (match && match[1] && match[1].length === 11) {
                 return match[1];
             }
+        }
+
+        // Fallback: try to extract 11-character video ID directly
+        const directMatch = cleanUrl.match(/([a-zA-Z0-9_-]{11})/);
+        if (directMatch && directMatch[1] && (cleanUrl.includes('youtube') || cleanUrl.includes('youtu.be'))) {
+            return directMatch[1];
         }
 
         return null;

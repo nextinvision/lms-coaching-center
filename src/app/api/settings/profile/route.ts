@@ -5,6 +5,7 @@ import { settingsService } from '@/modules/settings';
 import { updateProfileSchema } from '@/modules/settings';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { deleteRequestCache } from '@/core/utils/requestCache';
 
 export async function PATCH(request: Request) {
     try {
@@ -24,6 +25,9 @@ export async function PATCH(request: Request) {
         const data = updateProfileSchema.parse(body);
 
         await settingsService.updateProfile(user.id, data);
+
+        // Invalidate auth cache to force refresh on next request
+        deleteRequestCache(`auth:user:${token}`);
 
         return NextResponse.json({
             success: true,

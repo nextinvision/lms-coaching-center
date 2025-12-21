@@ -5,6 +5,7 @@ import React from 'react';
 import { PDFViewer } from './PDFViewer';
 import { VideoPlayer } from './VideoPlayer';
 import { Card, CardContent } from '@/shared/components/ui/Card';
+import { downloadImage, extractFilenameFromUrl } from '@/core/utils/fileDownload';
 import Image from 'next/image';
 import type { Content } from '../types/content.types';
 
@@ -39,13 +40,21 @@ export function FileViewer({ content }: FileViewerProps) {
                         </div>
                         {content.isDownloadable && (
                             <div className="p-4 border-t">
-                                <a
-                                    href={content.fileUrl}
-                                    download
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const filename = content.fileName || extractFilenameFromUrl(content.fileUrl, content.title);
+                                            const extension = filename.split('.').pop()?.toLowerCase() || 'jpg';
+                                            const imageType = extension === 'png' ? 'png' : extension === 'webp' ? 'webp' : extension === 'gif' ? 'gif' : 'jpeg';
+                                            await downloadImage(content.fileUrl, filename.replace(/\.[^.]+$/, ''), imageType);
+                                        } catch (error) {
+                                            console.error('Download failed:', error);
+                                        }
+                                    }}
                                     className="text-blue-600 hover:underline text-sm"
                                 >
                                     Download Image
-                                </a>
+                                </button>
                             </div>
                         )}
                     </CardContent>

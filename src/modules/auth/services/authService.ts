@@ -89,21 +89,9 @@ export const authService = {
      * Logout user
      */
     async logout(token: string): Promise<void> {
-        try {
-            // Try to delete session, but don't fail if it doesn't exist
-            await prisma.session.delete({
-                where: { token },
-            });
-        } catch (error: unknown) {
-            // If session doesn't exist (P2025 error in Prisma), that's okay
-            // This can happen if session was already deleted or expired
-            if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
-                // Record not found - this is acceptable during logout
-                return;
-            }
-            // Re-throw other errors
-            throw error;
-        }
+        await prisma.session.delete({
+            where: { token },
+        });
         
         // Clear cache for this token
         const { deleteRequestCache } = await import('@/core/utils/requestCache');

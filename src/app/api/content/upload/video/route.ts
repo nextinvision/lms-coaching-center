@@ -1,4 +1,4 @@
-// PDF Upload API Route
+// Video Upload API Route
 import { NextResponse } from 'next/server';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
@@ -22,7 +22,6 @@ export async function POST(request: Request) {
         const file = formData.get('file') as File;
         const batchId = formData.get('batchId') as string;
         const subjectId = formData.get('subjectId') as string | null;
-        const chapter = formData.get('chapter') as string | null;
 
         if (!file || !batchId) {
             return NextResponse.json(
@@ -32,9 +31,9 @@ export async function POST(request: Request) {
         }
 
         // Validate file type
-        if (file.type !== 'application/pdf') {
+        if (!file.type.startsWith('video/')) {
             return NextResponse.json(
-                { success: false, error: 'Only PDF files are allowed' },
+                { success: false, error: 'Only video files are allowed' },
                 { status: 400 }
             );
         }
@@ -42,16 +41,16 @@ export async function POST(request: Request) {
         // Generate folder path
         let folder = `content/batch-${batchId}`;
         if (subjectId) folder += `/subject-${subjectId}`;
-        if (chapter) folder += `/chapter-${chapter}`;
 
         // Upload to Cloudinary
-        const { url, publicId } = await cloudinaryStorage.uploadPDF(file, folder);
+        const { url, publicId, thumbnailUrl } = await cloudinaryStorage.uploadVideo(file, folder);
 
         return NextResponse.json({
             success: true,
             data: {
                 url,
                 publicId,
+                thumbnailUrl,
                 fileName: file.name,
                 fileSize: file.size,
             },

@@ -1,7 +1,7 @@
 // Attendance Calendar Component
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/Card';
 import { Badge } from '@/shared/components/ui/Badge';
 import { useAttendance } from '../hooks/useAttendance';
@@ -21,15 +21,20 @@ export function AttendanceCalendar({
     month = new Date().getMonth() + 1,
     year = new Date().getFullYear(),
 }: AttendanceCalendarProps) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    // Memoize dates to prevent recreation
+    const startDate = useMemo(() => new Date(year, month - 1, 1), [year, month]);
+    const endDate = useMemo(() => new Date(year, month, 0), [year, month]);
 
-    const filters: AttendanceFilters = {
-        studentId,
-        batchId,
-        startDate,
-        endDate,
-    };
+    // Memoize filters to prevent object recreation on every render
+    const filters: AttendanceFilters = useMemo(
+        () => ({
+            studentId,
+            batchId,
+            startDate,
+            endDate,
+        }),
+        [studentId, batchId, startDate, endDate]
+    );
 
     const { attendances, isLoading, error } = useAttendance(filters);
 

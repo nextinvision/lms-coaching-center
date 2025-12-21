@@ -1,5 +1,4 @@
 // File Upload Utilities
-import { supabaseStorage } from './supabase';
 import { cloudinaryStorage } from './cloudinary';
 import { youtubeUtils } from './youtube';
 
@@ -32,25 +31,30 @@ export const fileUpload = {
                 return this.uploadPDF(file, metadata);
             case 'IMAGE':
                 return this.uploadImage(file, metadata);
+            case 'VIDEO':
+                return this.uploadVideo(file, metadata);
             default:
                 throw new Error(`Unsupported file type: ${type}`);
         }
     },
 
     /**
-     * Upload PDF to Supabase
+     * Upload PDF to Cloudinary
      */
     async uploadPDF(
         file: File,
         metadata: { batchId: string; subjectId?: string; chapter?: string }
     ): Promise<UploadResult> {
-        const path = this.generatePDFPath(file.name, metadata);
-        const result = await supabaseStorage.uploadPDF(file, path);
+        let folder = `content/batch-${metadata.batchId}`;
+        if (metadata.subjectId) folder += `/subject-${metadata.subjectId}`;
+        if (metadata.chapter) folder += `/chapter-${metadata.chapter}`;
+
+        const result = await cloudinaryStorage.uploadPDF(file, folder);
 
         return {
             type: 'PDF',
             url: result.url,
-            fileId: result.path,
+            fileId: result.publicId,
             fileName: file.name,
             fileSize: file.size,
         };
@@ -122,13 +126,35 @@ export const fileUpload = {
     },
 
     /**
+     * Upload Video to Cloudinary
+     */
+    async uploadVideo(
+        file: File,
+        metadata: { batchId: string; subjectId?: string }
+    ): Promise<UploadResult> {
+        let folder = `content/batch-${metadata.batchId}`;
+        if (metadata.subjectId) folder += `/subject-${metadata.subjectId}`;
+
+        const result = await cloudinaryStorage.uploadVideo(file, folder);
+
+        return {
+            type: 'VIDEO',
+            url: result.url,
+            fileId: result.publicId,
+            fileName: file.name,
+            fileSize: file.size,
+            thumbnailUrl: result.thumbnailUrl,
+        };
+    },
+
+    /**
      * Validate file type
      */
     validateFileType(file: File, expectedType: FileType): boolean {
         const mimeTypes: Record<FileType, string[]> = {
             PDF: ['application/pdf'],
-            IMAGE: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-            VIDEO: [], // Not used for file uploads
+            IMAGE: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
+            VIDEO: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'],
         };
 
         return mimeTypes[expectedType].includes(file.type);

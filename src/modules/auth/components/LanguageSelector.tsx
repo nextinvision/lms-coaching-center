@@ -1,13 +1,22 @@
 // Language Selector Component
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLanguageStore } from '@/shared/store/languageStore';
 import { Select } from '@/shared/components/ui/Select';
 import { Globe } from 'lucide-react';
+import useTranslation from '@/core/i18n/useTranslation';
 
 export const LanguageSelector: React.FC = () => {
     const { language, setLanguage } = useLanguageStore();
+    const { t } = useTranslation();
+
+    // Update HTML lang attribute when language changes
+    useEffect(() => {
+        if (typeof document !== 'undefined') {
+            document.documentElement.lang = language;
+        }
+    }, [language]);
 
     const options = [
         { label: 'English', value: 'en' },

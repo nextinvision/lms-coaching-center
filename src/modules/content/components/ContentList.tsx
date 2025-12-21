@@ -2,6 +2,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useContentByBatch } from '../hooks/useContentByBatch';
 import { ContentCard } from './ContentCard';
 import { EmptyState } from '@/shared/components/feedback/EmptyState';
@@ -18,10 +19,29 @@ interface ContentListProps {
 }
 
 export function ContentList({ batchId, onContentClick, showFilters = true }: ContentListProps) {
-    const { content, isLoading, error } = useContentByBatch(batchId);
+    const router = useRouter();
+    const { content, isLoading, error, refetch } = useContentByBatch(batchId);
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<ContentType | ''>('');
     const [languageFilter, setLanguageFilter] = useState<Language | ''>('');
+
+    // Default click handler: navigate to content viewer based on current route
+    const handleContentClick = (contentId: string) => {
+        if (onContentClick) {
+            onContentClick(contentId);
+        } else {
+            // Determine route based on current path
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/teacher/')) {
+                router.push(`/teacher/content/${contentId}`);
+            } else if (currentPath.includes('/student/')) {
+                router.push(`/student/notes/${contentId}`);
+            } else {
+                // Fallback to student route
+                router.push(`/student/notes/${contentId}`);
+            }
+        }
+    };
 
     if (isLoading) {
         return (
@@ -92,7 +112,7 @@ export function ContentList({ batchId, onContentClick, showFilters = true }: Con
                     <ContentCard
                         key={item.id}
                         content={item}
-                        onClick={() => onContentClick?.(item.id)}
+                        onClick={() => handleContentClick(item.id)}
                     />
                 ))}
             </div>

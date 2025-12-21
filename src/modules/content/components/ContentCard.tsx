@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui
 import { Badge } from '@/shared/components/ui/Badge';
 import type { Content } from '../types/content.types';
 import { FileText, Image as ImageIcon, Video, Download } from 'lucide-react';
+import { downloadPDF, downloadImage, extractFilenameFromUrl } from '@/core/utils/fileDownload';
 
 interface ContentCardProps {
     content: Content;
@@ -27,9 +28,28 @@ export function ContentCard({ content, onClick, showDownload = true }: ContentCa
         }
     };
 
-    const handleDownload = (e: React.MouseEvent) => {
+    const handleDownload = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (content.isDownloadable && content.fileUrl) {
+        if (!content.isDownloadable || !content.fileUrl) return;
+
+        try {
+            const filename = content.fileName || extractFilenameFromUrl(content.fileUrl, content.title);
+
+            if (content.type === 'PDF') {
+                await downloadPDF(content.fileUrl, filename);
+            } else if (content.type === 'IMAGE') {
+                // Determine image type from URL or default to jpeg
+                const extension = filename.split('.').pop()?.toLowerCase() || 'jpg';
+                const imageType = extension === 'png' ? 'png' : extension === 'webp' ? 'webp' : extension === 'gif' ? 'gif' : 'jpeg';
+                await downloadImage(content.fileUrl, filename.replace(/\.[^.]+$/, ''), imageType);
+            } else {
+                // For videos or other types, use generic download
+                const { downloadFile } = await import('@/core/utils/fileDownload');
+                await downloadFile(content.fileUrl, filename);
+            }
+        } catch (error) {
+            console.error('Download failed:', error);
+            // Fallback to opening in new tab if download fails
             window.open(content.fileUrl, '_blank');
         }
     };

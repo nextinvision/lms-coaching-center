@@ -1,37 +1,34 @@
 // useContentByBatch Hook
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useContentStore } from '../store/contentStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
 import type { Content } from '../types/content.types';
 
 export function useContentByBatch(batchId: string | null) {
     const { content, isLoading, error, setContent, setLoading, setError } = useContentStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFetchedBatchIdRef = useRef<string | null>(null);
+    const hasFetchedRef = useRef<string | null>(null);
     const isFetchingRef = useRef(false); // Use ref to track fetching state
 
+    // Memoize batchId to prevent unnecessary re-renders
+    const batchIdKey = useMemo(() => batchId, [batchId]);
+
     const fetchContent = useCallback(async () => {
-        if (!batchId) {
+        if (!batchIdKey) {
             setContent([]);
-            lastFetchedBatchIdRef.current = null;
+            hasFetchedRef.current = null;
             return;
         }
 
-        // Don't fetch if already fetching the same batch
-        if (lastFetchedBatchIdRef.current === batchId && (isFetchingRef.current || isLoading)) {
+        // Prevent duplicate calls for the same batch
+        if (hasFetchedRef.current === batchIdKey && isFetchingRef.current) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFetchedBatchIdRef.current = batchId;
+        hasFetchedRef.current = batchIdKey;
         isFetchingRef.current = true; // Set ref immediately
 
         try {
@@ -39,21 +36,19 @@ export function useContentByBatch(batchId: string | null) {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`/api/content/batch/${batchId}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/content/batch/${batchIdKey}`;
+
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: Content[] }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch content');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
-                setContent(result.data as Content[]);
+                setContent(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            hasFetchedRef.current = null; // Reset on error to allow retry
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -63,18 +58,16 @@ export function useContentByBatch(batchId: string | null) {
                 isFetchingRef.current = false; // Clear ref
             }
         }
-    }, [batchId, isLoading, setContent, setLoading, setError]); // Removed isFetching from deps
+    }, [batchIdKey, setContent, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
+        hasFetchedRef.current = null; // Reset when batchId changes
         fetchContent();
 
         return () => {
             isMountedRef.current = false;
             isFetchingRef.current = false; // Reset on unmount
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [fetchContent]);
 
@@ -82,7 +75,10 @@ export function useContentByBatch(batchId: string | null) {
         content,
         isLoading: isLoading || isFetching,
         error,
-        refetch: fetchContent,
+        refetch: () => {
+            hasFetchedRef.current = null;
+            return fetchContent();
+        },
     };
 }
 
