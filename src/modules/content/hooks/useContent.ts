@@ -3,75 +3,67 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useContentStore } from '../store/contentStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
 import type { Content } from '../types/content.types';
 
 export function useContent(contentId: string | null) {
     const { currentContent, isLoading, error, setCurrentContent, setLoading, setError } =
         useContentStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFetchedIdRef = useRef<string | null>(null);
+    const hasFetchedRef = useRef<string | null>(null);
+    const isFetchingRef = useRef(false);
 
     const fetchContent = useCallback(async (id: string) => {
-        // Don't fetch if already fetching the same content
-        if (lastFetchedIdRef.current === id && (isFetching || isLoading)) {
+        // Prevent duplicate calls for the same content
+        if (hasFetchedRef.current === id && isFetchingRef.current) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFetchedIdRef.current = id;
+        hasFetchedRef.current = id;
+        isFetchingRef.current = true;
 
         try {
             setIsFetching(true);
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`/api/content/${id}`, {
-                signal: abortControllerRef.current.signal,
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: Content }>(`/api/content/${id}`, {
+                ttl: 60000, // Cache for 60 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch content');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
-                setCurrentContent(result.data as Content);
+                setCurrentContent(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            hasFetchedRef.current = null; // Reset on error to allow retry
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
             if (isMountedRef.current) {
                 setLoading(false);
                 setIsFetching(false);
+                isFetchingRef.current = false;
             }
         }
-    }, [isFetching, isLoading, setCurrentContent, setLoading, setError]);
+    }, [setCurrentContent, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
-        
+
         if (contentId) {
+            hasFetchedRef.current = null; // Reset when contentId changes
             fetchContent(contentId);
         } else {
             setCurrentContent(null);
-            lastFetchedIdRef.current = null;
+            hasFetchedRef.current = null;
         }
 
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
+            isFetchingRef.current = false;
         };
     }, [contentId, fetchContent, setCurrentContent]);
 
@@ -79,7 +71,12 @@ export function useContent(contentId: string | null) {
         content: currentContent,
         isLoading: isLoading || isFetching,
         error,
-        refetch: () => contentId && fetchContent(contentId),
+        refetch: () => {
+            if (contentId) {
+                hasFetchedRef.current = null;
+                return fetchContent(contentId);
+            }
+        },
     };
 }
 

@@ -9,13 +9,7 @@ export async function POST(request: Request) {
         const token = cookieStore.get('auth_token')?.value;
 
         if (token) {
-            try {
-                await authService.logout(token);
-            } catch (error) {
-                // If session doesn't exist, that's okay - just clear the cookie
-                // This handles cases where session was already deleted or doesn't exist
-                console.warn('Session not found during logout:', (error as Error).message);
-            }
+            await authService.logout(token);
         }
 
         const response = NextResponse.json({
@@ -23,20 +17,8 @@ export async function POST(request: Request) {
             message: 'Logged out successfully',
         });
 
-        // Clear cookie with same configuration as login
-        const isProduction = 
-            process.env.NODE_ENV === 'production' || 
-            process.env.VERCEL_ENV === 'production' ||
-            (typeof request.headers.get('host') === 'string' && 
-             !request.headers.get('host')?.includes('localhost'));
-
-        response.cookies.set('auth_token', '', {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: 'lax',
-            maxAge: 0, // Expire immediately
-            path: '/',
-        });
+        // Clear cookie
+        response.cookies.delete('auth_token');
 
         return response;
     } catch (error) {

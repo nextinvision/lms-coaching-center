@@ -75,7 +75,10 @@ export default function TeacherContentUploadPage() {
                             batchId={selectedBatchId}
                             subjectOptions={subjectOptions}
                             onSuccess={() => {
-                                window.location.href = '/teacher/content';
+                                // Small delay to ensure cache is invalidated
+                                setTimeout(() => {
+                                    window.location.href = '/teacher/content';
+                                }, 100);
                             }}
                             onCancel={() => {
                                 window.location.href = '/teacher/content';

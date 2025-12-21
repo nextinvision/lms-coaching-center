@@ -12,6 +12,8 @@ import { FileUpload } from '@/shared/components/ui/FileUpload';
 import { useToast } from '@/shared/components/ui/Toast';
 import { createContentSchema } from '../services/contentValidation';
 import type { CreateContentInput } from '../types/content.types';
+import { youtubeUtils } from '@/core/storage/youtube';
+import { requestDeduplication } from '@/core/utils/requestDeduplication';
 import { Upload, X } from 'lucide-react';
 
 interface ContentUploadProps {
@@ -39,6 +41,7 @@ export function ContentUpload({
         handleSubmit,
         formState: { errors },
         setValue,
+        watch,
     } = useForm<CreateContentInput>({
         resolver: zodResolver(createContentSchema),
         defaultValues: {
@@ -64,6 +67,8 @@ export function ContentUpload({
                 type = 'IMAGE';
             } else if (file.type === 'application/pdf') {
                 type = 'PDF';
+            } else if (file.type.startsWith('video/')) {
+                type = 'VIDEO';
             }
 
             setContentType(type);
@@ -74,9 +79,16 @@ export function ContentUpload({
             formData.append('file', file);
             formData.append('type', type);
             formData.append('batchId', batchId);
+            const currentSubjectId = watch('subjectId');
+            if (currentSubjectId) formData.append('subjectId', currentSubjectId);
 
-            const uploadEndpoint =
-                type === 'PDF' ? '/api/content/upload/pdf' : '/api/content/upload/image';
+            // Determine upload endpoint
+            let uploadEndpoint = '/api/content/upload/image';
+            if (type === 'PDF') {
+                uploadEndpoint = '/api/content/upload/pdf';
+            } else if (type === 'VIDEO') {
+                uploadEndpoint = '/api/content/upload/video';
+            }
 
             const response = await fetch(uploadEndpoint, {
                 method: 'POST',
@@ -108,24 +120,51 @@ export function ContentUpload({
         }
     };
 
-    const handleYouTubeUrl = () => {
-        if (!youtubeUrl) return;
-
-        const { youtubeUtils } = require('@/core/storage/youtube');
-        const videoInfo = youtubeUtils.getVideoInfo(youtubeUrl);
-
-        if (!videoInfo.isValid) {
+    const handleYouTubeUrl = async () => {
+        if (!youtubeUrl || !youtubeUrl.trim()) {
             showToast({
-                message: 'Invalid YouTube URL',
+                message: 'Please enter a YouTube URL',
                 variant: 'error',
             });
             return;
         }
 
-        setContentType('VIDEO');
-        setValue('type', 'VIDEO');
-        setValue('fileUrl', videoInfo.embedUrl || youtubeUrl);
-        setUploadedFileUrl(videoInfo.embedUrl || youtubeUrl);
+        try {
+            // Trim whitespace from URL
+            const trimmedUrl = youtubeUrl.trim();
+            
+            // Validate and get video info
+            const videoInfo = youtubeUtils.getVideoInfo(trimmedUrl);
+
+            if (!videoInfo.isValid || !videoInfo.videoId) {
+                showToast({
+                    message: 'Invalid YouTube URL. Please use a valid YouTube video URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID)',
+                    variant: 'error',
+                });
+                return;
+            }
+
+            // Set form values
+            setContentType('VIDEO');
+            setValue('type', 'VIDEO');
+            setValue('fileUrl', videoInfo.embedUrl || trimmedUrl);
+            setUploadedFileUrl(videoInfo.embedUrl || trimmedUrl);
+            
+            // Set fileName to video title or video ID
+            setValue('fileName', `YouTube Video - ${videoInfo.videoId}`);
+
+            // Show success feedback
+            showToast({
+                message: `YouTube URL validated successfully! Video ID: ${videoInfo.videoId}`,
+                variant: 'success',
+            });
+        } catch (error) {
+            console.error('YouTube URL validation error:', error);
+            showToast({
+                message: 'Failed to validate YouTube URL. Please check the URL and try again.',
+                variant: 'error',
+            });
+        }
     };
 
     const onSubmit = async (data: CreateContentInput) => {
@@ -158,6 +197,12 @@ export function ContentUpload({
                 message: 'Content created successfully',
                 variant: 'success',
             });
+
+            // Invalidate content cache for this batch to show new content immediately
+            if (batchId) {
+                requestDeduplication.invalidate(new RegExp(`^/api/content/batch/${batchId}`));
+                requestDeduplication.invalidate(new RegExp(`^/api/content\\?.*batchId=${batchId}`));
+            }
 
             onSuccess?.();
         } catch (error) {
@@ -238,13 +283,56 @@ export function ContentUpload({
                     <div className="flex gap-2">
                         <Input
                             value={youtubeUrl}
-                            onChange={(e) => setYoutubeUrl(e.target.value)}
-                            placeholder="https://www.youtube.com/watch?v=..."
+                            onChange={(e) => {
+                                setYoutubeUrl(e.target.value);
+                                // Clear uploaded URL if user changes the YouTube URL
+                                if (uploadedFileUrl) {
+                                    setUploadedFileUrl(null);
+                                    setValue('fileUrl', '');
+                                }
+                            }}
+                            placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                            className="flex-1"
                         />
-                        <Button type="button" onClick={handleYouTubeUrl}>
+                        <Button 
+                            type="button" 
+                            onClick={handleYouTubeUrl}
+                            disabled={!youtubeUrl.trim() || isSubmitting}
+                        >
                             Validate
                         </Button>
                     </div>
+                    {uploadedFileUrl && youtubeUtils.getVideoInfo(youtubeUrl).isValid && (
+                        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-green-700 font-medium">
+                                        ✓ YouTube URL validated successfully
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setYoutubeUrl('');
+                                        setUploadedFileUrl(null);
+                                        setValue('fileUrl', '');
+                                    }}
+                                    className="text-green-600 hover:text-green-800 transition-colors"
+                                    title="Clear URL"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            {youtubeUtils.getVideoInfo(youtubeUrl).videoId && (
+                                <p className="text-xs text-green-600 mt-1">
+                                    Video ID: {youtubeUtils.getVideoInfo(youtubeUrl).videoId}
+                                </p>
+                            )}
+                        </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                        Supported formats: youtube.com/watch?v=..., youtu.be/..., youtube.com/embed/...
+                    </p>
                 </div>
             )}
 

@@ -11,10 +11,14 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 
 export default function TeacherContentPage() {
-    const { batches } = useBatches();
-    const [selectedBatchId, setSelectedBatchId] = useState<string | null>(
-        batches?.[0]?.id || null
-    );
+    const { batches, isLoading: batchesLoading } = useBatches();
+    const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+
+    // Derive initial batchId from batches when they load
+    const initialBatchId = batches && batches.length > 0 ? batches[0].id : null;
+    
+    // Use the derived value if selectedBatchId is not set
+    const effectiveBatchId = selectedBatchId || initialBatchId;
 
     return (
         <ProtectedRoute requiredPermissions={['upload_content']}>
@@ -33,27 +37,37 @@ export default function TeacherContentPage() {
                         </Link>
                     </div>
 
-                    {batches && batches.length > 0 && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Select Batch
-                            </label>
-                            <select
-                                value={selectedBatchId || ''}
-                                onChange={(e) => setSelectedBatchId(e.target.value)}
-                                className="block w-full rounded-lg border border-gray-300 px-3 py-2"
-                            >
-                                {batches.map((batch) => (
-                                    <option key={batch.id} value={batch.id}>
-                                        {batch.name}
-                                    </option>
-                                ))}
-                            </select>
+                    {batchesLoading ? (
+                        <div className="text-center py-12">
+                            <p className="text-gray-600">Loading batches...</p>
                         </div>
-                    )}
+                    ) : batches && batches.length > 0 ? (
+                        <>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Select Batch
+                                </label>
+                                <select
+                                    value={effectiveBatchId || ''}
+                                    onChange={(e) => setSelectedBatchId(e.target.value || null)}
+                                    className="block w-full rounded-lg border border-gray-300 px-3 py-2"
+                                >
+                                    {batches.map((batch) => (
+                                        <option key={batch.id} value={batch.id}>
+                                            {batch.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
 
-                    {selectedBatchId ? (
-                        <ContentList batchId={selectedBatchId} showFilters={true} />
+                            {effectiveBatchId ? (
+                                <ContentList batchId={effectiveBatchId} showFilters={true} />
+                            ) : (
+                                <div className="text-center py-12">
+                                    <p className="text-gray-600">Select a batch to view content</p>
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <div className="text-center py-12">
                             <p className="text-gray-600">No batches assigned</p>

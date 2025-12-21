@@ -1,38 +1,34 @@
 // useHomeworks Hook
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useHomeworkStore } from '../store/homeworkStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
 import type { Assignment, AssignmentFilters } from '../types/homework.types';
 
 export function useHomeworks(filters?: AssignmentFilters) {
     const { assignments, isLoading, error, setAssignments, setLoading, setError } = useHomeworkStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFiltersRef = useRef<string>('');
+    const hasFetchedRef = useRef<string | null>(null);
     const isFetchingRef = useRef(false); // Use ref to track fetching state
 
-    const fetchHomeworks = useCallback(async () => {
-        // Create a stable key for filters to prevent duplicate requests
-        const filtersKey = JSON.stringify({
+    // Memoize filters key to prevent unnecessary re-renders
+    const filtersKey = useMemo(() => {
+        return JSON.stringify({
             batchId: filters?.batchId,
             subjectId: filters?.subjectId,
             search: filters?.search,
         });
+    }, [filters?.batchId, filters?.subjectId, filters?.search]);
 
-        // Don't fetch if already fetching with same filters
-        if (lastFiltersRef.current === filtersKey && (isFetchingRef.current || isLoading)) {
+    const fetchHomeworks = useCallback(async () => {
+        // Prevent duplicate calls for the same filters
+        if (hasFetchedRef.current === filtersKey && isFetchingRef.current) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFiltersRef.current = filtersKey;
+        hasFetchedRef.current = filtersKey;
         isFetchingRef.current = true; // Set ref immediately
 
         try {
@@ -45,21 +41,19 @@ export function useHomeworks(filters?: AssignmentFilters) {
             if (filters?.subjectId) queryParams.append('subjectId', filters.subjectId);
             if (filters?.search) queryParams.append('search', filters.search);
 
-            const response = await fetch(`/api/homework?${queryParams.toString()}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/homework?${queryParams.toString()}`;
+
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: Assignment[] }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch assignments');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
-                setAssignments(result.data as Assignment[]);
+                setAssignments(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            hasFetchedRef.current = null; // Reset on error to allow retry
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -69,18 +63,16 @@ export function useHomeworks(filters?: AssignmentFilters) {
                 isFetchingRef.current = false; // Clear ref
             }
         }
-    }, [filters?.batchId, filters?.subjectId, filters?.search, isLoading, setAssignments, setLoading, setError]); // Removed isFetching from deps
+    }, [filtersKey, filters?.batchId, filters?.subjectId, filters?.search, setAssignments, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
+        hasFetchedRef.current = null; // Reset on filters change
         fetchHomeworks();
 
         return () => {
             isMountedRef.current = false;
             isFetchingRef.current = false; // Reset on unmount
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [fetchHomeworks]);
 
@@ -88,7 +80,10 @@ export function useHomeworks(filters?: AssignmentFilters) {
         assignments,
         isLoading: isLoading || isFetching,
         error,
-        refetch: fetchHomeworks,
+        refetch: () => {
+            hasFetchedRef.current = null;
+            return fetchHomeworks();
+        },
     };
 }
 

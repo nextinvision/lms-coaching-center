@@ -1,11 +1,12 @@
 // PDF Viewer Component
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { Loader } from '@/shared/components/ui/Loader';
 import { Download, ExternalLink } from 'lucide-react';
+import { downloadPDF } from '@/core/utils/fileDownload';
 import dynamic from 'next/dynamic';
 
 // Dynamically import react-pdf components to avoid SSR issues
@@ -20,9 +21,14 @@ const PDFPage = dynamic(
 );
 
 // Set up PDF.js worker (only on client)
+// Use unpkg.com CDN which is more reliable and has better version support
 if (typeof window !== 'undefined') {
     import('react-pdf').then((module) => {
-        module.pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${module.pdfjs.version}/pdf.worker.min.js`;
+        const version = module.pdfjs.version;
+        // Use unpkg.com which reliably hosts pdfjs-dist packages
+        module.pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.js`;
+    }).catch((error) => {
+        console.warn('Failed to set up PDF.js worker:', error);
     });
 }
 
@@ -48,8 +54,15 @@ export function PDFViewer({ fileUrl, fileName, isDownloadable = true }: PDFViewe
         setLoading(false);
     };
 
-    const handleDownload = () => {
-        window.open(fileUrl, '_blank');
+    const handleDownload = async () => {
+        try {
+            const downloadFilename = fileName || 'document';
+            await downloadPDF(fileUrl, downloadFilename);
+        } catch (error) {
+            console.error('Download failed:', error);
+            // Fallback to opening in new tab if download fails
+            window.open(fileUrl, '_blank');
+        }
     };
 
     const handleOpenInNewTab = () => {
