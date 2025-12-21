@@ -106,6 +106,11 @@ export const adminNav: NavItem[] = [
         href: '/admin/reports',
         description: 'View reports',
     },
+    {
+        title: 'Settings',
+        href: '/admin/settings',
+        description: 'System settings',
+    },
 ];
 
 export function getNavByRole(role: UserRole): NavItem[] {

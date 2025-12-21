@@ -141,9 +141,24 @@ export const useAuthStore = create<AuthState>()(
 
                 // If already authenticated from persisted state, mark as initialized
                 if (state.isAuthenticated && state.session && state.user) {
-                    const sessionExpiry = state.session.expiresAt.getTime();
+                    // Handle Date deserialization from localStorage
+                    const expiresAt = state.session.expiresAt instanceof Date 
+                        ? state.session.expiresAt 
+                        : new Date(state.session.expiresAt);
+                    
+                    const sessionExpiry = expiresAt.getTime();
                     if (sessionExpiry > Date.now()) {
-                        set({ isInitialized: true });
+                        // Ensure session has proper Date objects
+                        set({ 
+                            session: {
+                                ...state.session,
+                                expiresAt,
+                                createdAt: state.session.createdAt instanceof Date
+                                    ? state.session.createdAt
+                                    : new Date(state.session.createdAt),
+                            },
+                            isInitialized: true 
+                        });
                         return;
                     }
                 }
@@ -175,8 +190,23 @@ export const useAuthStore = create<AuthState>()(
 
                     // If already authenticated and session is valid, skip check
                     if (state.isAuthenticated && state.session && state.user) {
-                        const sessionExpiry = state.session.expiresAt.getTime();
+                        // Handle Date deserialization from localStorage
+                        const expiresAt = state.session.expiresAt instanceof Date 
+                            ? state.session.expiresAt 
+                            : new Date(state.session.expiresAt);
+                        
+                        const sessionExpiry = expiresAt.getTime();
                         if (sessionExpiry > Date.now()) {
+                            // Ensure session has proper Date objects
+                            set({
+                                session: {
+                                    ...state.session,
+                                    expiresAt,
+                                    createdAt: state.session.createdAt instanceof Date
+                                        ? state.session.createdAt
+                                        : new Date(state.session.createdAt),
+                                },
+                            });
                             return; // Session still valid, no need to check
                         }
                     }
@@ -303,11 +333,52 @@ export const useAuthStore = create<AuthState>()(
             name: 'auth-storage',
             partialize: (state) => ({
                 user: state.user,
-                session: state.session,
+                session: state.session ? {
+                    ...state.session,
+                    // Serialize Date objects to ISO strings for storage
+                    expiresAt: state.session.expiresAt instanceof Date 
+                        ? state.session.expiresAt.toISOString() 
+                        : state.session.expiresAt,
+                    createdAt: state.session.createdAt instanceof Date 
+                        ? state.session.createdAt.toISOString() 
+                        : state.session.createdAt,
+                } : null,
                 isAuthenticated: state.isAuthenticated,
                 lastLoginTime: state.lastLoginTime,
                 isInitialized: false, // Always re-initialize on page load
             }),
+            // Deserialize Date strings back to Date objects on rehydration
+            merge: (persistedState, currentState) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const persisted = persistedState as Record<string, any>;
+                
+                // Convert date strings back to Date objects in session
+                if (persisted?.session && typeof persisted.session === 'object') {
+                    const session = persisted.session as Record<string, unknown>;
+                    if (session.expiresAt && typeof session.expiresAt === 'string') {
+                        session.expiresAt = new Date(session.expiresAt);
+                    }
+                    if (session.createdAt && typeof session.createdAt === 'string') {
+                        session.createdAt = new Date(session.createdAt);
+                    }
+                }
+                
+                // Convert user date fields if they exist
+                if (persisted?.user && typeof persisted.user === 'object') {
+                    const user = persisted.user as Record<string, unknown>;
+                    if (user.createdAt && typeof user.createdAt === 'string') {
+                        user.createdAt = new Date(user.createdAt);
+                    }
+                    if (user.updatedAt && typeof user.updatedAt === 'string') {
+                        user.updatedAt = new Date(user.updatedAt);
+                    }
+                }
+                
+                return {
+                    ...currentState,
+                    ...persisted,
+                } as AuthState;
+            },
         }
     )
 );

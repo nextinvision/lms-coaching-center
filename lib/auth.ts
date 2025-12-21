@@ -78,8 +78,14 @@ export async function requireStudent(): Promise<AuthUser> {
 // Note: New code should use authService.login() instead
 import jwt from 'jsonwebtoken'
 
-const getJwtSecret = () => {
-  return process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production'
+// JWT_SECRET is required for security - no fallbacks allowed
+const getJwtSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file.');
+  }
+  // TypeScript assertion: secret is guaranteed to be string after the check above
+  return secret as string;
 }
 
 export function createToken(userId: string): string {

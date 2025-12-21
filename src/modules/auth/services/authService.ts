@@ -2,9 +2,18 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '@/core/database/prisma';
+import { getRequestCache, setRequestCache } from '@/core/utils/requestCache';
 import type { LoginCredentials, LoginResponse, AuthUser } from '../types/auth.types';
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production';
+// JWT_SECRET is required for security - no fallbacks allowed
+// Get JWT_SECRET lazily (only when needed) to avoid errors on public routes
+function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file and restart the server.');
+    }
+    return secret;
+}
 const JWT_EXPIRES_IN = '7d';
 
 export const authService = {
@@ -42,7 +51,7 @@ export const authService = {
         // Generate JWT token
         const token = jwt.sign(
             { userId: user.id, email: user.email, role: user.role },
-            JWT_SECRET,
+            getJwtSecret(),
             { expiresIn: JWT_EXPIRES_IN }
         );
 
@@ -83,38 +92,48 @@ export const authService = {
         await prisma.session.delete({
             where: { token },
         });
+        
+        // Clear cache for this token
+        const { deleteRequestCache } = await import('@/core/utils/requestCache');
+        deleteRequestCache(`auth:user:${token}`);
     },
 
     /**
      * Verify token and get user
+     * Uses request-level caching to avoid redundant DB queries
      */
     async verifyToken(token: string): Promise<AuthUser | null> {
         try {
-            // Verify JWT
-            const decoded = jwt.verify(token, JWT_SECRET) as {
-                userId: string;
-                email: string;
-                role: string;
-            };
+            // Check request cache first
+            const cacheKey = `auth:user:${token}`;
+            const cached = getRequestCache<AuthUser>(cacheKey);
+            if (cached) {
+                return cached;
+            }
 
-            // Check if session exists and is not expired
+            // Verify JWT (this ensures token is valid before hitting DB)
+            jwt.verify(token, getJwtSecret());
+
+            // Optimize: Get session and user in one query instead of two separate queries
+            // This reduces from 2 DB queries to 1 DB query
             const session = await prisma.session.findUnique({
                 where: { token },
+                include: {
+                    user: {
+                        include: {
+                            studentProfile: true,
+                            teacherProfile: true,
+                            adminProfile: true,
+                        },
+                    },
+                },
             });
 
             if (!session || session.expiresAt < new Date()) {
                 return null;
             }
 
-            // Get user
-            const user = await prisma.user.findUnique({
-                where: { id: decoded.userId },
-                include: {
-                    studentProfile: true,
-                    teacherProfile: true,
-                    adminProfile: true,
-                },
-            });
+            const user = session.user;
 
             if (!user || !user.isActive) {
                 return null;
@@ -128,6 +147,9 @@ export const authService = {
                 teacherProfile: user.teacherProfile || undefined,
                 adminProfile: user.adminProfile || undefined,
             };
+
+            // Cache for this request
+            setRequestCache(cacheKey, authUser);
 
             return authUser;
         } catch (error) {

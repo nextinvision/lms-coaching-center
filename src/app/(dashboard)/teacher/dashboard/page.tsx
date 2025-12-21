@@ -6,15 +6,59 @@ import { DashboardLayout } from '@/shared/components/layout/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/Card';
 import { useAuth } from '@/modules/auth';
 import { useBatches } from '@/modules/batches';
+import { HomeworkStats } from '@/modules/homework';
 import { Loader } from '@/shared/components/ui/Loader';
 import { Button } from '@/shared/components/ui/Button';
-import { BookOpen, FileText, Users, Clock } from 'lucide-react';
+import { BookOpen, FileText, Users, Clock, ClipboardList, Bell } from 'lucide-react';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
 export default function TeacherDashboardPage() {
     const { user } = useAuth();
     const { batches, isLoading: batchesLoading } = useBatches();
     const teacherBatches = batches || [];
+    const [contentCount, setContentCount] = useState(0);
+    const [testCount, setTestCount] = useState(0);
+
+    useEffect(() => {
+        let isMounted = true;
+        let hasLoaded = false;
+
+        const loadStats = async () => {
+            if (hasLoaded) return;
+            hasLoaded = true;
+
+            try {
+                // Use deduplicated fetch to prevent multiple calls
+                const { deduplicatedFetch } = await import('@/core/utils/requestDeduplication');
+                
+                // Get content count
+                const contentData = await deduplicatedFetch<{ data: any[] }>('/api/content', {
+                    ttl: 30000, // Cache for 30 seconds
+                });
+                if (isMounted) {
+                    setContentCount(contentData.data?.length || 0);
+                }
+
+                // Get test count
+                const testData = await deduplicatedFetch<{ data: any[] }>('/api/tests', {
+                    ttl: 30000, // Cache for 30 seconds
+                });
+                if (isMounted) {
+                    setTestCount(testData.data?.length || 0);
+                }
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+                hasLoaded = false; // Allow retry on error
+            }
+        };
+        
+        loadStats();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     if (batchesLoading) {
         return (
@@ -36,6 +80,8 @@ export default function TeacherDashboardPage() {
                         <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
                         <p className="text-gray-600 mt-2">Welcome back, {user?.name}!</p>
                     </div>
+
+                    <HomeworkStats />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <Card>
@@ -61,7 +107,7 @@ export default function TeacherDashboardPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-3xl font-bold text-green-600">0</p>
+                                <p className="text-3xl font-bold text-green-600">{contentCount}</p>
                                 <p className="text-sm text-gray-600">Uploaded items</p>
                             </CardContent>
                         </Card>
@@ -74,7 +120,7 @@ export default function TeacherDashboardPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-3xl font-bold text-yellow-600">0</p>
+                                <p className="text-3xl font-bold text-yellow-600">{testCount}</p>
                                 <p className="text-sm text-gray-600">Created tests</p>
                             </CardContent>
                         </Card>
@@ -109,9 +155,29 @@ export default function TeacherDashboardPage() {
                                         Create Test
                                     </Button>
                                 </Link>
+                                <Link href="/teacher/homework/create">
+                                    <Button variant="outline" className="w-full justify-start">
+                                        <ClipboardList className="h-4 w-4 mr-2" />
+                                        Create Homework
+                                    </Button>
+                                </Link>
                                 <Link href="/teacher/attendance">
                                     <Button variant="outline" className="w-full justify-start">
                                         Mark Attendance
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Recent Notices</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Link href="/teacher/notices">
+                                    <Button variant="outline" className="w-full justify-start">
+                                        <Bell className="h-4 w-4 mr-2" />
+                                        View All Notices
                                     </Button>
                                 </Link>
                             </CardContent>

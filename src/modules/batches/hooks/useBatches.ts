@@ -1,36 +1,32 @@
 // useBatches Hook
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useBatchStore } from '../store/batchStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
 import type { Batch, BatchFilters } from '../types/batch.types';
 
 export function useBatches(filters?: BatchFilters) {
     const { batches, isLoading, error, setBatches, setLoading, setError } = useBatchStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFiltersRef = useRef<string>('');
+    const hasFetchedRef = useRef(false);
 
-    const fetchBatches = useCallback(async () => {
-        // Create a stable key for filters to prevent duplicate requests
-        const filtersKey = JSON.stringify({
+    // Memoize filters key to prevent unnecessary re-renders
+    const filtersKey = useMemo(() => {
+        return JSON.stringify({
             academicYearId: filters?.academicYearId,
             search: filters?.search,
         });
+    }, [filters?.academicYearId, filters?.search]);
 
-        // Don't fetch if already fetching with same filters
-        if (lastFiltersRef.current === filtersKey && (isFetching || isLoading)) {
+    const fetchBatches = useCallback(async () => {
+        // Prevent duplicate calls within same render cycle
+        if (hasFetchedRef.current && !isFetching) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFiltersRef.current = filtersKey;
+        hasFetchedRef.current = true;
 
         try {
             setIsFetching(true);
@@ -41,21 +37,18 @@ export function useBatches(filters?: BatchFilters) {
             if (filters?.academicYearId) queryParams.append('academicYearId', filters.academicYearId);
             if (filters?.search) queryParams.append('search', filters.search);
 
-            const response = await fetch(`/api/batches?${queryParams.toString()}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/batches?${queryParams.toString()}`;
+            
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: Batch[] }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch batches');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
-                setBatches(result.data as Batch[]);
+                setBatches(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -64,17 +57,17 @@ export function useBatches(filters?: BatchFilters) {
                 setIsFetching(false);
             }
         }
-    }, [filters?.academicYearId, filters?.search, isFetching, isLoading, setBatches, setLoading, setError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // filtersKey already includes all filter deps, isLoading causes infinite loops
+    }, [filtersKey, setBatches, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
+        hasFetchedRef.current = false; // Reset on filters change
         fetchBatches();
 
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [fetchBatches]);
 
@@ -82,7 +75,10 @@ export function useBatches(filters?: BatchFilters) {
         batches,
         isLoading: isLoading || isFetching,
         error,
-        refetch: fetchBatches,
+        refetch: () => {
+            hasFetchedRef.current = false;
+            return fetchBatches();
+        },
     };
 }
 

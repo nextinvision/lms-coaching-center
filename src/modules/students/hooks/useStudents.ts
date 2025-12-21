@@ -1,37 +1,33 @@
 // useStudents Hook
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useStudentStore } from '../store/studentStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
 import type { Student, StudentFilters } from '../types/student.types';
 
 export function useStudents(filters?: StudentFilters) {
     const { students, isLoading, error, setStudents, setLoading, setError } = useStudentStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFiltersRef = useRef<string>('');
+    const hasFetchedRef = useRef(false);
 
-    const fetchStudents = useCallback(async () => {
-        // Create a stable key for filters to prevent duplicate requests
-        const filtersKey = JSON.stringify({
+    // Memoize filters key to prevent unnecessary re-renders
+    const filtersKey = useMemo(() => {
+        return JSON.stringify({
             batchId: filters?.batchId,
             search: filters?.search,
             isActive: filters?.isActive,
         });
+    }, [filters?.batchId, filters?.search, filters?.isActive]);
 
-        // Don't fetch if already fetching with same filters
-        if (lastFiltersRef.current === filtersKey && (isFetching || isLoading)) {
+    const fetchStudents = useCallback(async () => {
+        // Prevent duplicate calls within same render cycle
+        if (hasFetchedRef.current && !isFetching) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFiltersRef.current = filtersKey;
+        hasFetchedRef.current = true;
 
         try {
             setIsFetching(true);
@@ -44,21 +40,18 @@ export function useStudents(filters?: StudentFilters) {
             if (filters?.isActive !== undefined)
                 queryParams.append('isActive', String(filters.isActive));
 
-            const response = await fetch(`/api/students?${queryParams.toString()}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/students?${queryParams.toString()}`;
+            
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: Student[] }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch students');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
-                setStudents(result.data as Student[]);
+                setStudents(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -67,17 +60,17 @@ export function useStudents(filters?: StudentFilters) {
                 setIsFetching(false);
             }
         }
-    }, [filters?.batchId, filters?.search, filters?.isActive, isFetching, isLoading, setStudents, setLoading, setError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // filtersKey already includes all filter deps, isLoading causes infinite loops
+    }, [filtersKey, setStudents, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
+        hasFetchedRef.current = false; // Reset on filters change
         fetchStudents();
 
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [fetchStudents]);
 
@@ -85,7 +78,10 @@ export function useStudents(filters?: StudentFilters) {
         students,
         isLoading: isLoading || isFetching,
         error,
-        refetch: fetchStudents,
+        refetch: () => {
+            hasFetchedRef.current = false;
+            return fetchStudents();
+        },
     };
 }
 

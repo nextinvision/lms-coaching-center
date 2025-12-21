@@ -1,4 +1,7 @@
 // API Error Handler
+import { NextResponse } from 'next/server';
+import { errorLogger } from '@/core/utils/errorLogger';
+
 export class ApiError extends Error {
     constructor(
         public statusCode: number,
@@ -7,6 +10,7 @@ export class ApiError extends Error {
     ) {
         super(message);
         this.name = 'ApiError';
+        Error.captureStackTrace(this, this.constructor);
     }
 }
 
@@ -16,18 +20,27 @@ export function handleApiError(error: unknown): ApiError {
     }
 
     if (error instanceof Error) {
-        return new ApiError(500, error.message);
+        // Don't expose internal error messages in production
+        const message = process.env.NODE_ENV === 'production' 
+            ? 'An error occurred' 
+            : error.message;
+        return new ApiError(500, message);
     }
 
     return new ApiError(500, 'An unknown error occurred');
 }
 
 export function createErrorResponse(error: ApiError) {
-    return Response.json(
+    // Log error
+    if (error.statusCode >= 500) {
+        errorLogger.error(`API Error: ${error.message}`, error, { details: error.details });
+    }
+
+    return NextResponse.json(
         {
             success: false,
             error: error.message,
-            details: error.details,
+            ...(process.env.NODE_ENV === 'development' && error.details ? { details: error.details } : {}),
         },
         { status: error.statusCode }
     );

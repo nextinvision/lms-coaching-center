@@ -12,10 +12,11 @@ export function useStudent(studentId: string | null) {
     const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
     const lastFetchedIdRef = useRef<string | null>(null);
+    const isFetchingRef = useRef(false); // Use ref to track fetching state
 
     const fetchStudent = useCallback(async (id: string) => {
         // Don't fetch if already fetching the same student
-        if (lastFetchedIdRef.current === id && (isFetching || isLoading)) {
+        if (lastFetchedIdRef.current === id && (isFetchingRef.current || isLoading)) {
             return;
         }
 
@@ -26,6 +27,7 @@ export function useStudent(studentId: string | null) {
 
         abortControllerRef.current = new AbortController();
         lastFetchedIdRef.current = id;
+        isFetchingRef.current = true; // Set ref immediately
 
         try {
             setIsFetching(true);
@@ -53,9 +55,10 @@ export function useStudent(studentId: string | null) {
             if (isMountedRef.current) {
                 setLoading(false);
                 setIsFetching(false);
+                isFetchingRef.current = false; // Clear ref
             }
         }
-    }, [isFetching, isLoading, setCurrentStudent, setLoading, setError]);
+    }, [isLoading, setCurrentStudent, setLoading, setError]); // Removed isFetching from deps
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -69,6 +72,7 @@ export function useStudent(studentId: string | null) {
 
         return () => {
             isMountedRef.current = false;
+            isFetchingRef.current = false; // Reset on unmount
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
