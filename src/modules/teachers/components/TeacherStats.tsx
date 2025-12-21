@@ -11,25 +11,40 @@ export function TeacherStats() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        let isMounted = true;
+        let hasLoaded = false;
+
         const fetchStats = async () => {
+            if (hasLoaded) return;
+            hasLoaded = true;
+
             try {
                 setIsLoading(true);
-                const response = await fetch('/api/teachers/stats');
+                
+                // Use deduplicated fetch to prevent multiple calls
+                const { deduplicatedFetch } = await import('@/core/utils/requestDeduplication');
+                const result = await deduplicatedFetch<{ data: any }>('/api/teachers/stats', {
+                    ttl: 60000, // Cache stats for 60 seconds
+                });
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch stats');
+                if (isMounted) {
+                    setStats(result.data);
                 }
-
-                const result = await response.json();
-                setStats(result.data);
             } catch (error) {
                 console.error('Failed to fetch teacher stats:', error);
+                hasLoaded = false; // Allow retry on error
             } finally {
-                setIsLoading(false);
+                if (isMounted) {
+                    setIsLoading(false);
+                }
             }
         };
 
         fetchStats();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     if (isLoading) {

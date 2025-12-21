@@ -1,36 +1,32 @@
 // useTeachers Hook
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTeacherStore } from '../store/teacherStore';
-import type { TeacherFilters } from '../types/teacher.types';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
+import type { Teacher, TeacherFilters } from '../types/teacher.types';
 
 export function useTeachers(filters?: TeacherFilters) {
     const { teachers, isLoading, error, setTeachers, setLoading, setError } = useTeacherStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFiltersRef = useRef<string>('');
+    const hasFetchedRef = useRef(false);
 
-    const fetchTeachers = useCallback(async () => {
-        // Create a stable key for filters to prevent duplicate requests
-        const filtersKey = JSON.stringify({
+    // Memoize filters key to prevent unnecessary re-renders
+    const filtersKey = useMemo(() => {
+        return JSON.stringify({
             search: filters?.search,
             batchId: filters?.batchId,
         });
+    }, [filters?.search, filters?.batchId]);
 
-        // Don't fetch if already fetching with same filters
-        if (lastFiltersRef.current === filtersKey && (isFetching || isLoading)) {
+    const fetchTeachers = useCallback(async () => {
+        // Prevent duplicate calls within same render cycle
+        if (hasFetchedRef.current && !isFetching) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFiltersRef.current = filtersKey;
+        hasFetchedRef.current = true;
 
         try {
             setIsFetching(true);
@@ -41,21 +37,18 @@ export function useTeachers(filters?: TeacherFilters) {
             if (filters?.search) queryParams.append('search', filters.search);
             if (filters?.batchId) queryParams.append('batchId', filters.batchId);
 
-            const response = await fetch(`/api/teachers?${queryParams.toString()}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/teachers?${queryParams.toString()}`;
+            
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: Teacher[] }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch teachers');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
                 setTeachers(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -64,17 +57,17 @@ export function useTeachers(filters?: TeacherFilters) {
                 setIsFetching(false);
             }
         }
-    }, [filters?.search, filters?.batchId, isFetching, isLoading, setTeachers, setLoading, setError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // filtersKey already includes all filter deps, isLoading/isFetching cause infinite loops
+    }, [filtersKey, setTeachers, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
+        hasFetchedRef.current = false; // Reset on filters change
         fetchTeachers();
 
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [fetchTeachers]);
 
@@ -82,7 +75,10 @@ export function useTeachers(filters?: TeacherFilters) {
         teachers,
         isLoading: isLoading || isFetching,
         error,
-        refetch: fetchTeachers,
+        refetch: () => {
+            hasFetchedRef.current = false;
+            return fetchTeachers();
+        },
     };
 }
 

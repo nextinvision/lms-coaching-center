@@ -11,6 +11,7 @@ export function useHomeworks(filters?: AssignmentFilters) {
     const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
     const lastFiltersRef = useRef<string>('');
+    const isFetchingRef = useRef(false); // Use ref to track fetching state
 
     const fetchHomeworks = useCallback(async () => {
         // Create a stable key for filters to prevent duplicate requests
@@ -21,7 +22,7 @@ export function useHomeworks(filters?: AssignmentFilters) {
         });
 
         // Don't fetch if already fetching with same filters
-        if (lastFiltersRef.current === filtersKey && (isFetching || isLoading)) {
+        if (lastFiltersRef.current === filtersKey && (isFetchingRef.current || isLoading)) {
             return;
         }
 
@@ -32,6 +33,7 @@ export function useHomeworks(filters?: AssignmentFilters) {
 
         abortControllerRef.current = new AbortController();
         lastFiltersRef.current = filtersKey;
+        isFetchingRef.current = true; // Set ref immediately
 
         try {
             setIsFetching(true);
@@ -64,9 +66,10 @@ export function useHomeworks(filters?: AssignmentFilters) {
             if (isMountedRef.current) {
                 setLoading(false);
                 setIsFetching(false);
+                isFetchingRef.current = false; // Clear ref
             }
         }
-    }, [filters?.batchId, filters?.subjectId, filters?.search, isFetching, isLoading, setAssignments, setLoading, setError]);
+    }, [filters?.batchId, filters?.subjectId, filters?.search, isLoading, setAssignments, setLoading, setError]); // Removed isFetching from deps
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -74,6 +77,7 @@ export function useHomeworks(filters?: AssignmentFilters) {
 
         return () => {
             isMountedRef.current = false;
+            isFetchingRef.current = false; // Reset on unmount
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }

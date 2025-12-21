@@ -3,27 +3,21 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStudentStore } from '../store/studentStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
 import type { StudentStats } from '../types/student.types';
 
 export function useStudentStats() {
     const { stats, isLoading, error, setStats, setLoading, setError } = useStudentStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
     const hasFetchedRef = useRef(false);
 
     const fetchStats = useCallback(async () => {
-        // Don't fetch if already fetching or already fetched
-        if ((hasFetchedRef.current && stats) || (isFetching || isLoading)) {
+        // Prevent duplicate calls within same render cycle
+        if (hasFetchedRef.current && !isFetching) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
         hasFetchedRef.current = true;
 
         try {
@@ -31,22 +25,17 @@ export function useStudentStats() {
             setLoading(true);
             setError(null);
 
-            const response = await fetch('/api/students/stats', {
-                signal: abortControllerRef.current.signal,
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: StudentStats }>('/api/students/stats', {
+                ttl: 60000, // Cache stats for 60 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch student stats');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
-                setStats(result.data as StudentStats);
+                setStats(result.data);
             }
         } catch (err) {
             hasFetchedRef.current = false; // Reset on error to allow retry
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -55,7 +44,7 @@ export function useStudentStats() {
                 setIsFetching(false);
             }
         }
-    }, [stats, isFetching, isLoading, setStats, setLoading, setError]);
+    }, [setStats, setLoading, setError]); // Removed stats and isLoading from deps - they cause infinite loops
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -63,9 +52,6 @@ export function useStudentStats() {
 
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [fetchStats]);
 
@@ -75,7 +61,7 @@ export function useStudentStats() {
         error,
         refetch: () => {
             hasFetchedRef.current = false;
-            fetchStats();
+            return fetchStats();
         },
     };
 }

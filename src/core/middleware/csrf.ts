@@ -2,7 +2,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes, createHmac } from 'crypto';
 
-const CSRF_SECRET = process.env.CSRF_SECRET || process.env.JWT_SECRET || 'csrf-secret-change-in-production';
+// CSRF_SECRET uses JWT_SECRET as fallback, but JWT_SECRET is required
+// Get secrets lazily to avoid errors on public routes
+function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is required. Please set it in your .env file and restart the server.');
+    }
+    return secret;
+}
+
+function getCsrfSecret(): string {
+    return process.env.CSRF_SECRET || getJwtSecret();
+}
 const CSRF_TOKEN_HEADER = 'X-CSRF-Token';
 const CSRF_COOKIE_NAME = 'csrf-token';
 
@@ -17,7 +29,7 @@ export function generateCsrfToken(): string {
  * Create CSRF token hash
  */
 export function createCsrfTokenHash(token: string): string {
-    return createHmac('sha256', CSRF_SECRET).update(token).digest('hex');
+    return createHmac('sha256', getCsrfSecret()).update(token).digest('hex');
 }
 
 /**

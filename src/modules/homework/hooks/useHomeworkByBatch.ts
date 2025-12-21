@@ -11,6 +11,7 @@ export function useHomeworkByBatch(batchId: string | null) {
     const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
     const lastFetchedBatchIdRef = useRef<string | null>(null);
+    const isFetchingRef = useRef(false); // Use ref to track fetching state
 
     const fetchHomeworks = useCallback(async () => {
         if (!batchId) {
@@ -20,7 +21,7 @@ export function useHomeworkByBatch(batchId: string | null) {
         }
 
         // Don't fetch if already fetching the same batch
-        if (lastFetchedBatchIdRef.current === batchId && (isFetching || isLoading)) {
+        if (lastFetchedBatchIdRef.current === batchId && (isFetchingRef.current || isLoading)) {
             return;
         }
 
@@ -31,6 +32,7 @@ export function useHomeworkByBatch(batchId: string | null) {
 
         abortControllerRef.current = new AbortController();
         lastFetchedBatchIdRef.current = batchId;
+        isFetchingRef.current = true; // Set ref immediately
 
         try {
             setIsFetching(true);
@@ -58,9 +60,10 @@ export function useHomeworkByBatch(batchId: string | null) {
             if (isMountedRef.current) {
                 setLoading(false);
                 setIsFetching(false);
+                isFetchingRef.current = false; // Clear ref
             }
         }
-    }, [batchId, isFetching, isLoading, setAssignments, setLoading, setError]);
+    }, [batchId, isLoading, setAssignments, setLoading, setError]); // Removed isFetching from deps
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -68,6 +71,7 @@ export function useHomeworkByBatch(batchId: string | null) {
 
         return () => {
             isMountedRef.current = false;
+            isFetchingRef.current = false; // Reset on unmount
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }

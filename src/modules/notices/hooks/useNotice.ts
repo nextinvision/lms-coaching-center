@@ -3,49 +3,42 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNoticeStore } from '../store/noticeStore';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
+import type { Notice } from '../types/notice.types';
 
 export function useNotice(noticeId: string | null) {
     const { currentNotice, isLoading, error, setCurrentNotice, setLoading, setError } =
         useNoticeStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFetchedIdRef = useRef<string | null>(null);
+    const hasFetchedRef = useRef<string | null>(null);
 
     const fetchNotice = useCallback(async (id: string) => {
-        // Don't fetch if already fetching the same notice
-        if (lastFetchedIdRef.current === id && (isFetching || isLoading)) {
+        // Prevent duplicate calls for the same notice
+        if (hasFetchedRef.current === id && !isFetching) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFetchedIdRef.current = id;
+        hasFetchedRef.current = id;
 
         try {
             setIsFetching(true);
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`/api/notices/${id}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/notices/${id}`;
+
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: Notice }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch notice');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
                 setCurrentNotice(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            hasFetchedRef.current = null; // Reset on error to allow retry
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
@@ -54,23 +47,23 @@ export function useNotice(noticeId: string | null) {
                 setIsFetching(false);
             }
         }
-    }, [isFetching, isLoading, setCurrentNotice, setLoading, setError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // isLoading/isFetching cause infinite loops, noticeId is handled separately
+    }, [setCurrentNotice, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
-        
+
         if (noticeId) {
+            hasFetchedRef.current = null; // Reset when noticeId changes
             fetchNotice(noticeId);
         } else {
             setCurrentNotice(null);
-            lastFetchedIdRef.current = null;
+            hasFetchedRef.current = null;
         }
 
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [noticeId, fetchNotice, setCurrentNotice]);
 
@@ -78,7 +71,12 @@ export function useNotice(noticeId: string | null) {
         notice: currentNotice,
         isLoading: isLoading || isFetching,
         error,
-        refetch: () => noticeId && fetchNotice(noticeId),
+        refetch: () => {
+            if (noticeId) {
+                hasFetchedRef.current = null;
+                return fetchNotice(noticeId);
+            }
+        },
     };
 }
 

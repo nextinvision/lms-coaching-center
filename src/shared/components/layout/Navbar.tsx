@@ -1,19 +1,26 @@
 // Navbar Component
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/modules/auth';
 import { useLanguageStore } from '@/shared/store/languageStore';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
-import { Menu, Bell, LogOut } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import { useUIStore } from '@/shared/store/uiStore';
+import { NotificationDropdown } from './NotificationDropdown';
+import { useStudent } from '@/modules/students';
 
 export const Navbar: React.FC = () => {
     const { user, logout, isAuthenticated } = useAuth();
     const { language, setLanguage } = useLanguageStore();
     const { toggleSidebar } = useUIStore();
+
+    // Get student batchId for filtering notices (only for students)
+    const studentId = useMemo(() => user?.studentProfile?.id || null, [user?.studentProfile?.id]);
+    const { student } = useStudent(studentId);
+    const batchId = useMemo(() => student?.batchId || null, [student?.batchId]);
 
     const handleLogout = async () => {
         await logout();
@@ -52,13 +59,10 @@ export const Navbar: React.FC = () => {
                             {language === 'en' ? 'অসমীয়া' : 'English'}
                         </button>
 
-                        {isAuthenticated && (
+                        {isAuthenticated && user && (
                             <>
                                 {/* Notifications */}
-                                <button className="p-2 rounded-lg hover:bg-gray-100 relative">
-                                    <Bell className="h-5 w-5 text-gray-600" />
-                                    <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
-                                </button>
+                                <NotificationDropdown userRole={user.role} batchId={batchId} />
 
                                 {/* User Menu */}
                                 <div className="flex items-center space-x-3">

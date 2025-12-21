@@ -21,26 +21,43 @@ export default function TeacherDashboardPage() {
     const [testCount, setTestCount] = useState(0);
 
     useEffect(() => {
+        let isMounted = true;
+        let hasLoaded = false;
+
         const loadStats = async () => {
+            if (hasLoaded) return;
+            hasLoaded = true;
+
             try {
+                // Use deduplicated fetch to prevent multiple calls
+                const { deduplicatedFetch } = await import('@/core/utils/requestDeduplication');
+                
                 // Get content count
-                const contentResponse = await fetch('/api/content');
-                if (contentResponse.ok) {
-                    const contentData = await contentResponse.json();
+                const contentData = await deduplicatedFetch<{ data: any[] }>('/api/content', {
+                    ttl: 30000, // Cache for 30 seconds
+                });
+                if (isMounted) {
                     setContentCount(contentData.data?.length || 0);
                 }
 
                 // Get test count
-                const testResponse = await fetch('/api/tests');
-                if (testResponse.ok) {
-                    const testData = await testResponse.json();
+                const testData = await deduplicatedFetch<{ data: any[] }>('/api/tests', {
+                    ttl: 30000, // Cache for 30 seconds
+                });
+                if (isMounted) {
                     setTestCount(testData.data?.length || 0);
                 }
             } catch (err) {
                 console.error('Failed to load stats:', err);
+                hasLoaded = false; // Allow retry on error
             }
         };
+        
         loadStats();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     if (batchesLoading) {

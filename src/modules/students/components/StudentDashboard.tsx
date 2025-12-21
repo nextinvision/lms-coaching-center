@@ -30,7 +30,13 @@ export function StudentDashboard() {
     
     const { content, isLoading: contentLoading } = useContentByBatch(batchId);
     const { assignments: homework } = useHomeworkByBatch(batchId);
-    const { notices } = useNotices({ batchId: batchId || undefined, isActive: true });
+    
+    // Memoize filters to prevent object recreation on every render
+    const noticeFilters = useMemo(() => ({
+        batchId: batchId || undefined,
+        isActive: true,
+    }), [batchId]);
+    const { notices } = useNotices(noticeFilters);
     
     // Show loading if auth is still loading or student is loading
     if (authLoading || studentLoading) {

@@ -2,19 +2,29 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production';
+// JWT_SECRET is required for security - no fallbacks allowed
+// Get JWT_SECRET at runtime to ensure it's loaded from .env
+function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error(
+            'JWT_SECRET environment variable is required. Please set it in your .env file and restart the server.'
+        );
+    }
+    return secret;
+}
 
 const publicRoutes = ['/', '/login', '/sign-in', '/sign-up', '/api/auth']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes
+  // Allow public routes FIRST - no JWT_SECRET check needed
   if (publicRoutes.some((route) => pathname === route || pathname.startsWith(route + '/'))) {
     return NextResponse.next()
   }
 
-  // Allow API auth routes
+  // Allow API auth routes - no JWT_SECRET check needed
   if (pathname.startsWith('/api/auth/')) {
     return NextResponse.next()
   }
@@ -30,11 +40,28 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Verify token
+  // Only check JWT_SECRET when we actually have a token to verify
   try {
-    jwt.verify(token, JWT_SECRET)
+    const secret = getJwtSecret()
+    jwt.verify(token, secret)
     return NextResponse.next()
-  } catch {
+  } catch (error) {
+    // If JWT_SECRET is missing, show helpful error only for API routes
+    // For pages, redirect to login (user won't see the error)
+    if (error instanceof Error && error.message.includes('JWT_SECRET')) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Server configuration error: JWT_SECRET is missing. Please contact administrator.' 
+          }, 
+          { status: 500 }
+        )
+      }
+      // For pages, just redirect to login (don't expose server errors)
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    
     // Invalid token, redirect to login
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

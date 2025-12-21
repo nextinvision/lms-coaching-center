@@ -20,16 +20,30 @@ export default function AdminDashboardPage() {
     const [stats, setStats] = useState<any>(null);
 
     useEffect(() => {
+        let isMounted = true;
+        let hasLoaded = false; // Prevent multiple calls
+        
         const loadStats = async () => {
+            if (hasLoaded) return; // Already loading or loaded
+            hasLoaded = true;
+            
             try {
                 const data = await fetchReportStats();
-                setStats(data);
+                if (isMounted) {
+                    setStats(data);
+                }
             } catch (err) {
                 console.error('Failed to load stats:', err);
+                hasLoaded = false; // Allow retry on error
             }
         };
+        
         loadStats();
-    }, [fetchReportStats]);
+        
+        return () => {
+            isMounted = false;
+        };
+    }, []); // Only run once on mount - fetchReportStats is stable
 
     return (
         <ProtectedRoute requiredPermissions={['system_settings']}>
@@ -112,6 +126,20 @@ export default function AdminDashboardPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-sm text-gray-600">Manage teachers</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+
+                        <Link href="/admin/admins">
+                            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Users className="h-5 w-5 text-indigo-600" />
+                                        Admin Users
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-gray-600">Manage admin accounts</p>
                                 </CardContent>
                             </Card>
                         </Link>

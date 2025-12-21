@@ -10,10 +10,11 @@ export function useActiveAcademicYear() {
     const [isFetching, setIsFetching] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
+    const isFetchingRef = useRef(false); // Use ref to track fetching state without causing re-renders
 
     const fetchActiveAcademicYear = useCallback(async () => {
-        // Don't fetch if already fetching
-        if (isFetching || isLoading) {
+        // Don't fetch if already fetching (check ref instead of state)
+        if (isFetchingRef.current) {
             return;
         }
 
@@ -23,6 +24,7 @@ export function useActiveAcademicYear() {
         }
 
         abortControllerRef.current = new AbortController();
+        isFetchingRef.current = true; // Set ref immediately
 
         try {
             setIsFetching(true);
@@ -50,9 +52,10 @@ export function useActiveAcademicYear() {
             if (isMountedRef.current) {
                 setLoading(false);
                 setIsFetching(false);
+                isFetchingRef.current = false; // Clear ref
             }
         }
-    }, [isFetching, isLoading, setActiveAcademicYear, setLoading, setError]);
+    }, [setActiveAcademicYear, setLoading, setError]); // Removed isLoading from deps - it causes infinite loop
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -60,6 +63,7 @@ export function useActiveAcademicYear() {
 
         return () => {
             isMountedRef.current = false;
+            isFetchingRef.current = false; // Reset on unmount
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }

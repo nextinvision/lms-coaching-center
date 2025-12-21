@@ -28,10 +28,24 @@ interface NavItem {
     roles: string[];
 }
 
+// Helper function to get dashboard URL by role
+const getDashboardUrl = (role: string): string => {
+    switch (role) {
+        case 'STUDENT':
+            return '/student/dashboard';
+        case 'TEACHER':
+            return '/teacher/dashboard';
+        case 'ADMIN':
+            return '/admin/dashboard';
+        default:
+            return '/dashboard';
+    }
+};
+
 const navItems: NavItem[] = [
     {
         label: 'Dashboard',
-        href: '/dashboard',
+        href: '/dashboard', // Will be replaced dynamically
         icon: <LayoutDashboard className="h-5 w-5" />,
         roles: ['STUDENT', 'TEACHER', 'ADMIN'],
     },
@@ -132,12 +146,14 @@ export const Sidebar: React.FC = () => {
                 <nav className="h-full overflow-y-auto p-4">
                     <ul className="space-y-1">
                         {filteredNavItems.map((item) => {
-                            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                            // Get dynamic href for Dashboard based on user role
+                            const href = item.label === 'Dashboard' && user ? getDashboardUrl(user.role) : item.href;
+                            const isActive = pathname === href || pathname.startsWith(href + '/');
 
                             return (
                                 <li key={item.href}>
                                     <Link
-                                        href={item.href}
+                                        href={href}
                                         className={cn(
                                             'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
                                             isActive

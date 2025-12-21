@@ -1,36 +1,34 @@
 // useAcademicYears Hook
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAcademicYearStore } from '../store/academic-yearStore';
-import type { AcademicYearFilters } from '../types/academic-year.types';
+import { deduplicatedFetch } from '@/core/utils/requestDeduplication';
+import type { AcademicYearFilters, AcademicYear } from '../types/academic-year.types';
 
 export function useAcademicYears(filters?: AcademicYearFilters) {
     const { academicYears, isLoading, error, setAcademicYears, setLoading, setError } = useAcademicYearStore();
     const [isFetching, setIsFetching] = useState(false);
-    const abortControllerRef = useRef<AbortController | null>(null);
     const isMountedRef = useRef(true);
-    const lastFiltersRef = useRef<string>('');
+    const hasFetchedRef = useRef(false);
+    const isFetchingRef = useRef(false);
 
-    const fetchAcademicYears = useCallback(async () => {
-        // Create a stable key for filters to prevent duplicate requests
-        const filtersKey = JSON.stringify({
+    // Memoize filters key to prevent unnecessary re-renders
+    const filtersKey = useMemo(() => {
+        return JSON.stringify({
             isActive: filters?.isActive,
             search: filters?.search,
         });
+    }, [filters?.isActive, filters?.search]);
 
-        // Don't fetch if already fetching with same filters
-        if (lastFiltersRef.current === filtersKey && (isFetching || isLoading)) {
+    const fetchAcademicYears = useCallback(async () => {
+        // Prevent duplicate calls within same render cycle
+        if (hasFetchedRef.current && !isFetchingRef.current) {
             return;
         }
 
-        // Cancel previous request if still pending
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        abortControllerRef.current = new AbortController();
-        lastFiltersRef.current = filtersKey;
+        hasFetchedRef.current = true;
+        isFetchingRef.current = true;
 
         try {
             setIsFetching(true);
@@ -41,40 +39,40 @@ export function useAcademicYears(filters?: AcademicYearFilters) {
             if (filters?.isActive !== undefined) queryParams.append('isActive', String(filters.isActive));
             if (filters?.search) queryParams.append('search', filters.search);
 
-            const response = await fetch(`/api/academic-years?${queryParams.toString()}`, {
-                signal: abortControllerRef.current.signal,
+            const url = `/api/academic-years?${queryParams.toString()}`;
+
+            // Use deduplicated fetch - automatically handles caching and deduplication
+            const result = await deduplicatedFetch<{ data: AcademicYear[] }>(url, {
+                ttl: 30000, // Cache for 30 seconds
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch academic years');
-            }
-
-            const result = await response.json();
-            
             if (isMountedRef.current) {
                 setAcademicYears(result.data);
             }
         } catch (err) {
-            if (err instanceof Error && err.name !== 'AbortError' && isMountedRef.current) {
+            hasFetchedRef.current = false; // Reset on error to allow retry
+            if (err instanceof Error && isMountedRef.current) {
                 setError(err.message);
             }
         } finally {
             if (isMountedRef.current) {
                 setLoading(false);
                 setIsFetching(false);
+                isFetchingRef.current = false;
             }
         }
-    }, [filters?.isActive, filters?.search, isFetching, isLoading, setAcademicYears, setLoading, setError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // filtersKey already includes all filter deps (isActive, search)
+    // isLoading/isFetching cause infinite loops if included in deps
+    }, [filtersKey, setAcademicYears, setLoading, setError]);
 
     useEffect(() => {
         isMountedRef.current = true;
+        hasFetchedRef.current = false; // Reset on filters change
         fetchAcademicYears();
 
         return () => {
             isMountedRef.current = false;
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
         };
     }, [fetchAcademicYears]);
 
@@ -82,7 +80,10 @@ export function useAcademicYears(filters?: AcademicYearFilters) {
         academicYears,
         isLoading: isLoading || isFetching,
         error,
-        refetch: fetchAcademicYears,
+        refetch: () => {
+            hasFetchedRef.current = false;
+            return fetchAcademicYears();
+        },
     };
 }
 
