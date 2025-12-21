@@ -9,6 +9,9 @@ import { Modal } from '@/shared/components/ui/Modal';
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 
+// Force dynamic rendering to prevent SSG issues with client-side hooks
+export const dynamic = 'force-dynamic';
+
 export default function AdminAcademicYearsPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);

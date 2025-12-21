@@ -13,6 +13,9 @@ import { Loader } from '@/shared/components/ui/Loader';
 import { Edit, ArrowLeft, Calendar, Users } from 'lucide-react';
 import Link from 'next/link';
 
+// Force dynamic rendering to prevent SSG issues with client-side hooks
+export const dynamic = 'force-dynamic';
+
 export default function AdminAcademicYearDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const [academicYearId, setAcademicYearId] = useState<string | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
