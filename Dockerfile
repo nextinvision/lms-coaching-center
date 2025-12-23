@@ -11,8 +11,8 @@ RUN apk add --no-cache libc6-compat openssl
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci --only=production --ignore-scripts
+# Install dependencies with legacy peer deps to handle React 19
+RUN npm ci --only=production --ignore-scripts --legacy-peer-deps
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -24,8 +24,8 @@ RUN apk add --no-cache libc6-compat openssl
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Install all dependencies (including devDependencies for build) with legacy peer deps
+RUN npm ci --legacy-peer-deps
 
 # Copy prisma schema
 COPY prisma ./prisma/
@@ -81,7 +81,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:8080/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start application
 CMD ["node", "server.js"]
