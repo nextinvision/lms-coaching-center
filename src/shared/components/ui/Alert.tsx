@@ -54,7 +54,7 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
                     {onClose && (
                         <button
                             onClick={onClose}
-                            className="ml-3 flex-shrink-0 inline-flex text-gray-400 hover:text-gray-600"
+                            className="ml-3 flex-shrink-0 inline-flex text-gray-600 hover:text-gray-800"
                         >
                             <X className="h-5 w-5" />
                         </button>

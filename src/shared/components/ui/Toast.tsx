@@ -112,7 +112,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
             </div>
             <button
                 onClick={() => onRemove(toast.id)}
-                className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+                className="shrink-0 text-gray-600 hover:text-gray-800 transition-colors"
             >
                 <X className="h-4 w-4" />
             </button>

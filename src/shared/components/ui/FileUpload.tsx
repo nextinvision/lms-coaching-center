@@ -139,7 +139,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                     <Upload
                         className={cn(
                             'h-10 w-10 mb-2',
-                            error ? 'text-red-400' : 'text-gray-400'
+                            error ? 'text-red-400' : 'text-gray-600'
                         )}
                     />
                     <p className="text-sm text-gray-600 mb-1">
@@ -153,10 +153,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                         {' or drag and drop'}
                     </p>
                     {accept && (
-                        <p className="text-xs text-gray-500">Accepted: {accept}</p>
+                        <p className="text-xs text-gray-600">Accepted: {accept}</p>
                     )}
                     {maxSize && (
-                        <p className="text-xs text-gray-500">Max size: {maxSize}MB</p>
+                        <p className="text-xs text-gray-600">Max size: {maxSize}MB</p>
                     )}
                 </div>
             </div>
@@ -169,12 +169,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                             className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
                         >
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <File className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                                <File className="h-5 w-5 text-gray-600 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-900 truncate">
                                         {file.name}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-600">
                                         {formatFileSize(file.size)}
                                     </p>
                                 </div>
@@ -183,7 +183,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                                 type="button"
                                 onClick={() => removeFile(index)}
                                 disabled={disabled}
-                                className="ml-2 p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                className="ml-2 p-1 text-gray-600 hover:text-red-600 transition-colors"
                             >
                                 <X className="h-4 w-4" />
                             </button>
@@ -194,7 +194,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
             {helperText && !error && (
-                <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+                <p className="mt-1 text-sm text-gray-600">{helperText}</p>
             )}
         </div>
     );

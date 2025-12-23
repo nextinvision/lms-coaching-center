@@ -104,7 +104,7 @@ export const Navbar: React.FC = () => {
                                         />
                                         <div className="hidden md:block text-left">
                                             <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                                            <p className="text-xs text-gray-500 capitalize">{user?.role.toLowerCase()}</p>
+                                            <p className="text-xs text-gray-600 capitalize">{user?.role.toLowerCase()}</p>
                                         </div>
                                     </button>
 
@@ -123,7 +123,7 @@ export const Navbar: React.FC = () => {
                                                         <p className="text-sm font-semibold text-gray-900 truncate">
                                                             {user?.name}
                                                         </p>
-                                                        <p className="text-xs text-gray-500 capitalize">
+                                                        <p className="text-xs text-gray-600 capitalize">
                                                             {user?.role.toLowerCase()}
                                                         </p>
                                                     </div>

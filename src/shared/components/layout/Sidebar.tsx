@@ -163,7 +163,7 @@ export const Sidebar: React.FC = () => {
                                             'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
                                             isActive
                                                 ? 'bg-blue-50 text-blue-600 font-medium'
-                                                : 'text-gray-700 hover:bg-gray-100'
+                                                : 'text-gray-800 hover:bg-gray-100'
                                         )}
                                         onClick={() => {
                                             // Close sidebar on mobile after clicking
