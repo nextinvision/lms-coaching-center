@@ -24,14 +24,12 @@ RUN apk add --no-cache libc6-compat openssl
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install all dependencies (including devDependencies for build) with legacy peer deps
-RUN npm ci --legacy-peer-deps
-
-# Copy prisma schema
+# Copy prisma schema BEFORE npm install (needed for postinstall hook)
 COPY prisma ./prisma/
 
-# Generate Prisma Client
-RUN npx prisma generate
+# Install all dependencies (including devDependencies for build) with legacy peer deps
+# This will run prisma generate in postinstall hook
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
