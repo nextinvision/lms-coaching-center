@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import jwt from 'jsonwebtoken'
+import { jwtVerify } from 'jose'
 
 // JWT_SECRET is required for security - no fallbacks allowed
 // Get JWT_SECRET at runtime to ensure it's loaded from .env
@@ -14,18 +14,13 @@ function getJwtSecret(): string {
     return secret;
 }
 
-const publicRoutes = ['/', '/login', '/sign-in', '/sign-up', '/api/auth']
+const publicRoutes = ['/', '/login', '/sign-in', '/sign-up'];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes FIRST - no JWT_SECRET check needed
-  if (publicRoutes.some((route) => pathname === route || pathname.startsWith(route + '/'))) {
-    return NextResponse.next()
-  }
-
-  // Allow API auth routes - no JWT_SECRET check needed
-  if (pathname.startsWith('/api/auth/')) {
+  // Allow public pages and all API auth routes to pass through
+  if (publicRoutes.includes(pathname) || pathname.startsWith('/api/auth/')) {
     return NextResponse.next()
   }
 
@@ -43,7 +38,8 @@ export function middleware(request: NextRequest) {
   // Only check JWT_SECRET when we actually have a token to verify
   try {
     const secret = getJwtSecret()
-    jwt.verify(token, secret)
+    const secretKey = new TextEncoder().encode(secret);
+    await jwtVerify(token, secretKey);
     return NextResponse.next()
   } catch (error) {
     // If JWT_SECRET is missing, show helpful error only for API routes
