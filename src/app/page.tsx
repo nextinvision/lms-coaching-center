@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/modules/auth';
+import Navbar from '@/shared/components/student/Navbar';
 import Hero from '@/shared/components/student/Hero';
 import FeaturesSection from '@/shared/components/student/FeaturesSection';
 import StatsSection from '@/shared/components/student/StatsSection';
@@ -56,7 +57,7 @@ export default function Home() {
         );
     }
 
-    // Show home page only if not authenticated
+    // Show loader while redirecting
     if (isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -68,6 +69,7 @@ export default function Home() {
     // Show landing page for unauthenticated users (or if auth check timed out)
     return (
         <div className="flex flex-col">
+            <Navbar />
             <Hero />
             <Companies />
             <FeaturesSection />
