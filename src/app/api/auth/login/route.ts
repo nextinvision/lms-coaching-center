@@ -19,14 +19,15 @@ export async function POST(request: Request) {
             },
         });
 
-        // Set HTTP-only cookie
-        response.cookies.set('auth_token', result.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7, // 7 days
-            path: '/',
-        });
+                response.cookies.set('auth_token', result.token, {
+                httpOnly: true,
+                // Only set secure if in production AND effectively required, 
+                // or simply rely on NODE_ENV if you ensure it is 'development' locally.
+                secure: process.env.NODE_ENV === 'production', 
+                sameSite: 'lax',
+                maxAge: 60 * 60 * 24 * 7,
+                path: '/',
+            });
 
         return response;
     } catch (error) {
