@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
-import Navbar from '@/shared/components/student/Navbar';
 import { Providers } from '@/shared/components/Providers';
 
 export const metadata: Metadata = {
@@ -18,7 +17,6 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en" style={{ scrollBehavior: 'smooth' }}>
       <body>
         <Providers>
-          <Navbar />
           {children}
         </Providers>
       </body>
