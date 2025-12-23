@@ -63,9 +63,11 @@ export async function PATCH(
         const validatedData = updateNoticeSchema.parse(body);
         
         // Convert type string to NoticeType enum if present
+        // expiresAt is already converted to ISO format by the schema transform
         const data: any = {
             ...validatedData,
             type: validatedData.type as any,
+            expiresAt: validatedData.expiresAt || null,
         };
 
         const notice = await noticeService.update(id, data);

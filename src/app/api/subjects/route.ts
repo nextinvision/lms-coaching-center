@@ -4,6 +4,7 @@ import { subjectService, createSubjectSchema } from '@/modules/subjects';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
 export async function GET(request: Request) {
     try {
@@ -23,11 +24,21 @@ export async function GET(request: Request) {
         const batchId = searchParams.get('batchId') || undefined;
         const search = searchParams.get('search') || undefined;
 
-        const subjects = await subjectService.getAll({ batchId, search });
+        // Parse pagination
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
+        });
+
+        const result = await subjectService.getAll(
+            { batchId, search },
+            pagination
+        );
 
         return NextResponse.json({
             success: true,
-            data: subjects,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(

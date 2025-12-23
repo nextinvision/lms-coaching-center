@@ -1,10 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import assets from '@/lib/assets';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuthStore } from '@/modules/auth/store/authStore';
+import { LogOut, User } from 'lucide-react';
 
 interface NavbarProps {
     userRole?: 'student' | 'teacher' | 'admin' | null;
@@ -13,7 +15,42 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ userRole = null, userName }) => {
     const pathname = usePathname();
+    const router = useRouter();
     const isContentListPage = pathname?.includes('/content');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const { logout } = useAuthStore();
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+
+        if (isDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isDropdownOpen]);
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+            setIsDropdownOpen(false);
+            router.push('/');
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    };
+
+    const toggleDropdown = () => {
+        setIsDropdownOpen(!isDropdownOpen);
+    };
 
     return (
         <div
@@ -80,12 +117,47 @@ const Navbar: React.FC<NavbarProps> = ({ userRole = null, userName }) => {
                 )}
 
                 {userRole ? (
-                    <div className="flex items-center gap-3">
-                        {userName && <span className="text-gray-700">{userName}</span>}
-                        {/* User button will be added when auth is integrated */}
-                        <button className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                            {userName?.charAt(0) || 'U'}
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={toggleDropdown}
+                            className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors cursor-pointer"
+                            aria-label="User menu"
+                        >
+                            {userName?.charAt(0).toUpperCase() || 'U'}
                         </button>
+
+                        {/* Dropdown Menu */}
+                        {isDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                                {/* User Info Section */}
+                                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+                                            {userName?.charAt(0).toUpperCase() || 'U'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">
+                                                {userName || 'User'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 capitalize">
+                                                {userRole}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Dropdown Actions */}
+                                <div className="py-1">
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        <span>Logout</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <Link href="/login">
@@ -124,9 +196,48 @@ const Navbar: React.FC<NavbarProps> = ({ userRole = null, userName }) => {
                 )}
 
                 {userRole ? (
-                    <button className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                        {userName?.charAt(0) || 'U'}
-                    </button>
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={toggleDropdown}
+                            className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors cursor-pointer"
+                            aria-label="User menu"
+                        >
+                            {userName?.charAt(0).toUpperCase() || 'U'}
+                        </button>
+
+                        {/* Mobile Dropdown Menu */}
+                        {isDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                                {/* User Info Section */}
+                                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+                                            {userName?.charAt(0).toUpperCase() || 'U'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">
+                                                {userName || 'User'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 capitalize">
+                                                {userRole}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Dropdown Actions */}
+                                <div className="py-1">
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        <span>Logout</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 ) : (
                     <Link href="/login">
                         <Image

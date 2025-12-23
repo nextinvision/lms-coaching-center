@@ -1,5 +1,6 @@
 // Attendance Service
 import prisma from '@/core/database/prisma';
+import { Prisma } from '@prisma/client';
 import type {
     Attendance,
     MarkAttendanceInput,
@@ -7,74 +8,90 @@ import type {
     AttendanceStats,
     BatchAttendanceSummary,
 } from '../types/attendance.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const attendanceService = {
     /**
-     * Mark attendance for a batch
+     * Mark attendance for a batch (optimized with bulk operations)
      */
     async markAttendance(data: MarkAttendanceInput, markedById: string): Promise<Attendance[]> {
-        const attendances: Attendance[] = [];
+        // Fetch all existing attendance records in one query
+        const studentIds = data.attendance.map((att) => att.studentId);
+        const existingAttendances = await prisma.attendance.findMany({
+            where: {
+                batchId: data.batchId,
+                date: data.date,
+                studentId: { in: studentIds },
+            },
+            take: 1000, // Safety limit (should cover all students in a batch)
+        });
 
-        for (const att of data.attendance) {
-            // Check if attendance already exists
-            const existing = await prisma.attendance.findUnique({
-                where: {
-                    studentId_batchId_date: {
+        // Create a map for quick lookup
+        const existingMap = new Map(
+            existingAttendances.map((att) => [att.studentId, att])
+        );
+
+        // Separate into create and update operations
+        const toCreate = data.attendance.filter(
+            (att) => !existingMap.has(att.studentId)
+        );
+        const toUpdate = data.attendance.filter((att) =>
+            existingMap.has(att.studentId)
+        );
+
+        // Use transaction for atomicity
+        return prisma.$transaction(async (tx) => {
+            // Bulk create new records
+            if (toCreate.length > 0) {
+                await tx.attendance.createMany({
+                    data: toCreate.map((att) => ({
                         studentId: att.studentId,
                         batchId: data.batchId,
                         date: data.date,
+                        present: att.present,
+                        remarks: att.remarks || null,
+                        markedById,
+                    })),
+                });
+            }
+
+            // Bulk update existing records
+            if (toUpdate.length > 0) {
+                await Promise.all(
+                    toUpdate.map((att) => {
+                        const existing = existingMap.get(att.studentId)!;
+                        return tx.attendance.update({
+                            where: { id: existing.id },
+                            data: {
+                                present: att.present,
+                                remarks: att.remarks || null,
+                                markedById,
+                            },
+                        });
+                    })
+                );
+            }
+
+            // Return all updated records with relations
+            return tx.attendance.findMany({
+                where: {
+                    batchId: data.batchId,
+                    date: data.date,
+                    studentId: { in: studentIds },
+                },
+                include: {
+                    student: {
+                        include: { user: true },
+                    },
+                    batch: {
+                        include: {
+                            academicYear: true,
+                        },
                     },
                 },
-            });
-
-            if (existing) {
-                // Update existing attendance
-                const updated = await prisma.attendance.update({
-                    where: { id: existing.id },
-                    data: {
-                        present: att.present,
-                        remarks: att.remarks || null,
-                        markedById,
-                    },
-                    include: {
-                        student: {
-                            include: { user: true },
-                        },
-                        batch: {
-                            include: {
-                                academicYear: true,
-                            },
-                        },
-                    },
-                });
-                attendances.push(updated as Attendance);
-            } else {
-                // Create new attendance
-                const created = await prisma.attendance.create({
-                    data: {
-                        studentId: att.studentId,
-                        batchId: data.batchId,
-                        date: data.date,
-                        present: att.present,
-                        remarks: att.remarks || null,
-                        markedById,
-                    },
-                    include: {
-                        student: {
-                            include: { user: true },
-                        },
-                        batch: {
-                            include: {
-                                academicYear: true,
-                            },
-                        },
-                    },
-                });
-                attendances.push(created as Attendance);
-            }
-        }
-
-        return attendances;
+                take: 1000, // Safety limit (should cover all students in a batch)
+            }) as Promise<Attendance[]>;
+        });
     },
 
     /**
@@ -99,10 +116,13 @@ export const attendanceService = {
     },
 
     /**
-     * Get all attendance with filters
+     * Get all attendance with filters and pagination
      */
-    async getAll(filters?: AttendanceFilters): Promise<Attendance[]> {
-        const where: any = {};
+    async getAll(
+        filters?: AttendanceFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Attendance>> {
+        const where: Prisma.AttendanceWhereInput = {};
 
         if (filters?.batchId) {
             where.batchId = filters.batchId;
@@ -122,22 +142,42 @@ export const attendanceService = {
             }
         }
 
-        const attendances = await prisma.attendance.findMany({
-            where,
-            include: {
-                student: {
-                    include: { user: true },
-                },
-                batch: {
-                    include: {
-                        academicYear: true,
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
+
+        // Get total count and paginated results in parallel
+        const [total, attendances] = await Promise.all([
+            prisma.attendance.count({ where }),
+            prisma.attendance.findMany({
+                where,
+                include: {
+                    student: {
+                        include: { user: true },
+                    },
+                    batch: {
+                        include: {
+                            academicYear: true,
+                        },
                     },
                 },
-            },
-            orderBy: { date: 'desc' },
-        });
+                orderBy: { date: 'desc' },
+                skip,
+                take,
+            }),
+        ]);
 
-        return attendances as Attendance[];
+        return {
+            data: attendances as Attendance[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
@@ -164,6 +204,7 @@ export const attendanceService = {
                     name: 'asc',
                 },
             },
+            take: 1000, // Enforce maximum limit (should cover all students in a batch)
         });
 
         return attendances as Attendance[];
@@ -173,7 +214,7 @@ export const attendanceService = {
      * Get student attendance statistics
      */
     async getStudentStats(studentId: string, batchId?: string): Promise<AttendanceStats> {
-        const where: any = { studentId };
+        const where: Prisma.AttendanceWhereInput = { studentId };
         if (batchId) {
             where.batchId = batchId;
         }
@@ -261,6 +302,8 @@ export const attendanceService = {
                     },
                 },
             },
+            take: 1000, // Enforce maximum limit for monthly reports
+            orderBy: { date: 'desc' },
         });
 
         // Group by date

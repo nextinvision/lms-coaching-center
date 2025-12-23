@@ -8,6 +8,7 @@ import type {
     NoticeStats,
     NoticeType,
 } from '../types/notice.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const noticeService = {
     /**
@@ -47,9 +48,12 @@ export const noticeService = {
     },
 
     /**
-     * Get all notices with filters
+     * Get all notices with filters and pagination
      */
-    async getAll(filters?: NoticeFilters): Promise<Notice[]> {
+    async getAll(
+        filters?: NoticeFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Notice>> {
         const where: any = {};
 
         if (filters?.batchId !== undefined) {
@@ -84,25 +88,47 @@ export const noticeService = {
             ];
         }
 
-        const notices = await prisma.notice.findMany({
-            where,
-            include: {
-                batch: true,
-            },
-            orderBy: [
-                { priority: 'desc' },
-                { createdAt: 'desc' },
-            ],
-        });
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
 
-        return notices as Notice[];
+        // Get total count and paginated results in parallel
+        const [total, notices] = await Promise.all([
+            prisma.notice.count({ where }),
+            prisma.notice.findMany({
+                where,
+                include: {
+                    batch: true,
+                },
+                orderBy: [
+                    { priority: 'desc' },
+                    { createdAt: 'desc' },
+                ],
+                skip,
+                take,
+            }),
+        ]);
+
+        return {
+            data: notices as Notice[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
-     * Get notices by batch
+     * Get notices by batch (with default pagination)
      */
     async getByBatch(batchId: string | null): Promise<Notice[]> {
-        return this.getAll({ batchId, isActive: true });
+        // Use getAll with default pagination to ensure limits
+        const result = await this.getAll({ batchId, isActive: true }, { page: 1, limit: 100, skip: 0 });
+        return result.data;
     },
 
     /**
@@ -154,6 +180,7 @@ export const noticeService = {
                     { expiresAt: { gt: new Date() } },
                 ],
             },
+            take: 1000, // Enforce maximum limit
         });
 
         const totalNotices = notices.length;

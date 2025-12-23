@@ -4,6 +4,7 @@ import { academicYearService, createAcademicYearSchema } from '@/modules/academi
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
 export async function GET(request: Request) {
     try {
@@ -23,14 +24,24 @@ export async function GET(request: Request) {
         const isActive = searchParams.get('isActive');
         const search = searchParams.get('search') || undefined;
 
-        const academicYears = await academicYearService.getAll({
-            isActive: isActive !== null ? isActive === 'true' : undefined,
-            search,
+        // Parse pagination
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
         });
+
+        const result = await academicYearService.getAll(
+            {
+                isActive: isActive !== null ? isActive === 'true' : undefined,
+                search,
+            },
+            pagination
+        );
 
         return NextResponse.json({
             success: true,
-            data: academicYears,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(

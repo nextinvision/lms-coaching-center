@@ -113,6 +113,63 @@ export const dateUtils = {
         const dateObj = typeof date === 'string' ? new Date(date) : date;
         return format(dateObj, 'PPP p');
     },
+
+    /**
+     * Convert datetime-local format (YYYY-MM-DDTHH:mm) to ISO datetime string
+     * Handles both datetime-local format and full ISO strings
+     */
+    convertToISODatetime(dateTimeString: string | null | undefined): string | null {
+        if (!dateTimeString || dateTimeString.trim() === '') {
+            return null;
+        }
+
+        // If it's already a valid ISO datetime string, return as is
+        if (dateTimeString.includes('Z') || dateTimeString.includes('+') || dateTimeString.includes('-', 10)) {
+            // Check if it's a valid ISO string (has timezone info or is already ISO format)
+            try {
+                const date = new Date(dateTimeString);
+                if (!isNaN(date.getTime())) {
+                    return date.toISOString();
+                }
+            } catch {
+                // Fall through to datetime-local conversion
+            }
+        }
+
+        // Handle datetime-local format (YYYY-MM-DDTHH:mm)
+        // This format doesn't include timezone, so we treat it as local time
+        const localDate = new Date(dateTimeString);
+        
+        if (isNaN(localDate.getTime())) {
+            throw new Error(`Invalid datetime format: ${dateTimeString}`);
+        }
+
+        // Convert to ISO string (UTC)
+        return localDate.toISOString();
+    },
+
+    /**
+     * Format ISO datetime or Date object to datetime-local format (YYYY-MM-DDTHH:mm) for input fields
+     */
+    formatForDateTimeLocal(dateInput: string | Date | null | undefined): string {
+        if (!dateInput) return '';
+        
+        try {
+            const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+            if (isNaN(date.getTime())) return '';
+            
+            // Get local date/time components
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        } catch {
+            return '';
+        }
+    },
 };
 
 export default dateUtils;

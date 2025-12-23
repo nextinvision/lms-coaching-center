@@ -13,6 +13,7 @@ import { useToast } from '@/shared/components/ui/Toast';
 import { createNoticeSchema, updateNoticeSchema } from '../services/noticeValidation';
 import type { CreateNoticeInput, UpdateNoticeInput, Notice } from '../types/notice.types';
 import { useBatches } from '@/modules/batches';
+import { dateUtils } from '@/shared/utils/date';
 
 interface NoticeFormProps {
     notice?: Notice; // Optional notice for edit mode
@@ -41,7 +42,7 @@ export function NoticeForm({ notice, onSuccess, onCancel }: NoticeFormProps) {
                   batchId: notice.batchId || '',
                   priority: notice.priority || 0,
                   expiresAt: notice.expiresAt
-                      ? new Date(notice.expiresAt).toISOString().slice(0, 16)
+                      ? dateUtils.formatForDateTimeLocal(notice.expiresAt)
                       : '',
                   isActive: notice.isActive,
               }
@@ -63,13 +64,19 @@ export function NoticeForm({ notice, onSuccess, onCancel }: NoticeFormProps) {
             const url = isEdit ? `/api/notices/${notice.id}` : '/api/notices';
             const method = isEdit ? 'PATCH' : 'POST';
 
+            // Convert datetime-local format to ISO datetime string
+            const payload = {
+                ...data,
+                batchId: data.batchId || null,
+                expiresAt: data.expiresAt 
+                    ? dateUtils.convertToISODatetime(data.expiresAt) 
+                    : null,
+            };
+
             const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...data,
-                    batchId: data.batchId || null,
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {

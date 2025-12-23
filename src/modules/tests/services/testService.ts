@@ -12,6 +12,7 @@ import type {
     TestStats,
     MCQOptions,
 } from '../types/test.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const testService = {
     /**
@@ -93,9 +94,12 @@ export const testService = {
     },
 
     /**
-     * Get all tests with filters
+     * Get all tests with filters and pagination
      */
-    async getAll(filters?: TestFilters): Promise<Test[]> {
+    async getAll(
+        filters?: TestFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Test>> {
         const where: any = {};
 
         if (filters?.batchId) {
@@ -121,23 +125,43 @@ export const testService = {
             ];
         }
 
-        const tests = await prisma.test.findMany({
-            where,
-            include: {
-                batch: {
-                    include: {
-                        academicYear: true,
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
+
+        // Get total count and paginated results in parallel
+        const [total, tests] = await Promise.all([
+            prisma.test.count({ where }),
+            prisma.test.findMany({
+                where,
+                include: {
+                    batch: {
+                        include: {
+                            academicYear: true,
+                        },
+                    },
+                    subject: true,
+                    questions: {
+                        orderBy: { order: 'asc' },
                     },
                 },
-                subject: true,
-                questions: {
-                    orderBy: { order: 'asc' },
-                },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+        ]);
 
-        return tests as Test[];
+        return {
+            data: tests as Test[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
@@ -332,6 +356,7 @@ export const testService = {
                 },
             },
             orderBy: { submittedAt: 'desc' },
+            take: 1000, // Enforce maximum limit
         });
 
         return submissions as TestSubmission[];
@@ -399,23 +424,35 @@ export const testService = {
         const totalTests = await prisma.test.count({ where });
         const activeTests = await prisma.test.count({ where: { ...where, isActive: true } });
 
-        const completedSubmissions = await prisma.testSubmission.findMany({
+        // Use aggregation instead of fetching all submissions
+        const submissionAggregate = await prisma.testSubmission.aggregate({
             where: batchId
                 ? {
                       test: { batchId },
                   }
                 : {},
-            include: { test: true },
+            _avg: {
+                obtainedMarks: true,
+                totalMarks: true,
+            },
+            _count: true,
         });
 
-        const completedTests = new Set(completedSubmissions.map((s) => s.testId)).size;
+        // Get unique test IDs using groupBy
+        const testGroups = await prisma.testSubmission.groupBy({
+            by: ['testId'],
+            where: batchId
+                ? {
+                      test: { batchId },
+                  }
+                : {},
+        });
+        const completedTests = testGroups.length;
 
+        // Calculate average score from aggregated data
         const averageScore =
-            completedSubmissions.length > 0
-                ? completedSubmissions.reduce(
-                      (sum, s) => sum + (s.obtainedMarks / s.totalMarks) * 100,
-                      0
-                  ) / completedSubmissions.length
+            submissionAggregate._avg.obtainedMarks && submissionAggregate._avg.totalMarks
+                ? (submissionAggregate._avg.obtainedMarks / submissionAggregate._avg.totalMarks) * 100
                 : 0;
 
         return {

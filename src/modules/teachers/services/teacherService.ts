@@ -9,6 +9,7 @@ import type {
     TeacherFilters,
     TeacherStats,
 } from '../types/teacher.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const teacherService = {
     /**
@@ -106,9 +107,12 @@ export const teacherService = {
     },
 
     /**
-     * Get all teachers with filters
+     * Get all teachers with filters and pagination
      */
-    async getAll(filters?: TeacherFilters): Promise<Teacher[]> {
+    async getAll(
+        filters?: TeacherFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Teacher>> {
         const where: any = {};
 
         if (filters?.search) {
@@ -126,22 +130,42 @@ export const teacherService = {
             };
         }
 
-        const teachers = await prisma.teacher.findMany({
-            where,
-            include: {
-                user: true,
-                batchAssignments: {
-                    include: {
-                        batch: true,
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
+
+        // Get total count and paginated results in parallel
+        const [total, teachers] = await Promise.all([
+            prisma.teacher.count({ where }),
+            prisma.teacher.findMany({
+                where,
+                include: {
+                    user: true,
+                    batchAssignments: {
+                        include: {
+                            batch: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                skip,
+                take,
+            }),
+        ]);
 
-        return teachers as Teacher[];
+        return {
+            data: teachers as Teacher[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
@@ -240,6 +264,7 @@ export const teacherService = {
                     },
                 },
             },
+            take: 1000, // Enforce maximum limit
         });
 
         const totalTeachers = teachers.length;

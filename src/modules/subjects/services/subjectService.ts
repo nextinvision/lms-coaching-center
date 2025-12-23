@@ -1,6 +1,7 @@
 // Subject Service
 import prisma from '@/core/database/prisma';
 import type { Subject, CreateSubjectInput, UpdateSubjectInput, SubjectFilters } from '../types/subject.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const subjectService = {
     /**
@@ -57,9 +58,12 @@ export const subjectService = {
     },
 
     /**
-     * Get all subjects with filters
+     * Get all subjects with filters and pagination
      */
-    async getAll(filters?: SubjectFilters): Promise<Subject[]> {
+    async getAll(
+        filters?: SubjectFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Subject>> {
         const where: any = {};
 
         if (filters?.batchId) {
@@ -70,19 +74,39 @@ export const subjectService = {
             where.name = { contains: filters.search, mode: 'insensitive' };
         }
 
-        const subjects = await prisma.subject.findMany({
-            where,
-            include: {
-                batch: {
-                    include: {
-                        academicYear: true,
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
+
+        // Get total count and paginated results in parallel
+        const [total, subjects] = await Promise.all([
+            prisma.subject.count({ where }),
+            prisma.subject.findMany({
+                where,
+                include: {
+                    batch: {
+                        include: {
+                            academicYear: true,
+                        },
                     },
                 },
-            },
-            orderBy: { name: 'asc' },
-        });
+                orderBy: { name: 'asc' },
+                skip,
+                take,
+            }),
+        ]);
 
-        return subjects as Subject[];
+        return {
+            data: subjects as Subject[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
@@ -99,6 +123,7 @@ export const subjectService = {
                 },
             },
             orderBy: { name: 'asc' },
+            take: 1000, // Enforce maximum limit (should cover all subjects in a batch)
         });
 
         return subjects as Subject[];

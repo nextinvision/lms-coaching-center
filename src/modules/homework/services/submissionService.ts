@@ -127,6 +127,7 @@ export const submissionService = {
             orderBy: {
                 submittedAt: 'desc',
             },
+            take: 1000, // Enforce maximum limit
         });
 
         return submissions as AssignmentSubmission[];
@@ -154,6 +155,7 @@ export const submissionService = {
             orderBy: {
                 submittedAt: 'desc',
             },
+            take: 1000, // Enforce maximum limit
         });
 
         return submissions as AssignmentSubmission[];

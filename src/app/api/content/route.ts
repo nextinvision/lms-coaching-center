@@ -5,6 +5,7 @@ import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import prisma from '@/core/database/prisma';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
 export async function GET(request: Request) {
     try {
@@ -28,18 +29,28 @@ export async function GET(request: Request) {
         const language = searchParams.get('language') as any;
         const search = searchParams.get('search') || undefined;
 
-        const content = await contentService.getAll({
-            batchId,
-            subjectId,
-            chapterName,
-            type,
-            language,
-            search,
+        // Parse pagination
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
         });
+
+        const result = await contentService.getAll(
+            {
+                batchId,
+                subjectId,
+                chapterName,
+                type,
+                language,
+                search,
+            },
+            pagination
+        );
 
         return NextResponse.json({
             success: true,
-            data: content,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(
