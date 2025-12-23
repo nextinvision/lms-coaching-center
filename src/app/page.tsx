@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import { useAuth } from '@/modules/auth';
 import Navbar from '@/shared/components/student/Navbar';
 import Hero from '@/shared/components/student/Hero';
@@ -15,41 +14,11 @@ import Footer from '@/shared/components/student/Footer';
 import { Loader } from '@/shared/components/ui/Loader';
 
 export default function Home() {
-    const router = useRouter();
-    const { isAuthenticated, isLoading, user } = useAuth();
-    const [authCheckTimeout, setAuthCheckTimeout] = useState(false);
+    const { isLoading } = useAuth();
 
-    // Set timeout to show page even if auth check takes too long
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setAuthCheckTimeout(true);
-        }, 2000); // Show page after 2 seconds even if still loading
-
-        return () => clearTimeout(timer);
-    }, []);
-
-    // Redirect authenticated users to their dashboard
-    useEffect(() => {
-        if (!isLoading && isAuthenticated && user) {
-            switch (user.role) {
-                case 'STUDENT':
-                    router.push('/student/dashboard');
-                    break;
-                case 'TEACHER':
-                    router.push('/teacher/dashboard');
-                    break;
-                case 'ADMIN':
-                    router.push('/admin/dashboard');
-                    break;
-                default:
-                    // Stay on home page if role is unknown
-                    break;
-            }
-        }
-    }, [isAuthenticated, isLoading, user, router]);
-
-    // Show loader while checking authentication (but only for a short time)
-    if (isLoading && !authCheckTimeout) {
+    // Show loader while checking authentication
+    // Middleware will redirect authenticated users server-side
+    if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader size="lg" text="Loading..." />
@@ -57,16 +26,8 @@ export default function Home() {
         );
     }
 
-    // Show loader while redirecting
-    if (isAuthenticated) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader size="lg" text="Redirecting to dashboard..." />
-            </div>
-        );
-    }
-
-    // Show landing page for unauthenticated users (or if auth check timed out)
+    // Show landing page for unauthenticated users
+    // Middleware redirects authenticated users before this renders
     return (
         <div className="flex flex-col">
             <Navbar />
