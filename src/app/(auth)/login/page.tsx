@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthLayout } from '@/shared/components/layout/AuthLayout';
 import { LoginForm, LanguageSelector, useAuth } from '@/modules/auth';
@@ -11,40 +11,45 @@ export default function LoginPage() {
     const { t } = useTranslation();
     const router = useRouter();
     const { isAuthenticated, isLoading, user } = useAuth();
+    const [shouldRedirect, setShouldRedirect] = useState(false);
 
     // Redirect authenticated users to their dashboard
+    // Use a delay to ensure auth state is fully settled
     useEffect(() => {
         if (!isLoading && isAuthenticated && user) {
+            // Wait a bit for auth state to fully settle
+            const timer = setTimeout(() => {
+                setShouldRedirect(true);
+            }, 500);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isAuthenticated, isLoading, user]);
+
+    // Perform redirect in separate effect to avoid race conditions
+    useEffect(() => {
+        if (shouldRedirect && user) {
             switch (user.role) {
                 case 'STUDENT':
-                    router.push('/student/dashboard');
+                    router.replace('/student/dashboard');
                     break;
                 case 'TEACHER':
-                    router.push('/teacher/dashboard');
+                    router.replace('/teacher/dashboard');
                     break;
                 case 'ADMIN':
-                    router.push('/admin/dashboard');
+                    router.replace('/admin/dashboard');
                     break;
                 default:
-                    router.push('/');
+                    router.replace('/');
             }
         }
-    }, [isAuthenticated, isLoading, user, router]);
+    }, [shouldRedirect, user, router]);
 
-    // Show loader while checking authentication
-    if (isLoading) {
+    // Show loader while checking authentication or redirecting
+    if (isLoading || shouldRedirect) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <Loader size="lg" text="Checking authentication..." />
-            </div>
-        );
-    }
-
-    // Show loader while redirecting
-    if (isAuthenticated) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader size="lg" text="Redirecting to dashboard..." />
+                <Loader size="lg" text={shouldRedirect ? "Redirecting to dashboard..." : "Checking authentication..."} />
             </div>
         );
     }
