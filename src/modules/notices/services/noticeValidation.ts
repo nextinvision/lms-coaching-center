@@ -1,5 +1,6 @@
 // Notice Validation Schemas
 import { z } from 'zod';
+import { flexibleDatetimeSchema } from '@/shared/utils/datetimeSchema';
 
 export const noticeTypeSchema = z.enum(['GENERAL', 'EXAM_DATE', 'HOLIDAY', 'IMPORTANT']);
 
@@ -10,7 +11,7 @@ export const createNoticeSchema = z.object({
     type: noticeTypeSchema,
     batchId: z.string().optional().nullable(),
     priority: z.number().int().min(0).max(10).optional().default(0),
-    expiresAt: z.string().datetime().optional().nullable(),
+    expiresAt: flexibleDatetimeSchema,
 });
 
 export const updateNoticeSchema = z.object({
@@ -21,7 +22,7 @@ export const updateNoticeSchema = z.object({
     batchId: z.string().optional().nullable(),
     isActive: z.boolean().optional(),
     priority: z.number().int().min(0).max(10).optional(),
-    expiresAt: z.string().datetime().optional().nullable(),
+    expiresAt: flexibleDatetimeSchema,
 });
 
 export type CreateNoticeInput = z.infer<typeof createNoticeSchema>;

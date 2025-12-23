@@ -7,6 +7,7 @@ import type {
     CreateAdminInput,
     UpdateAdminInput,
 } from '../types/admin.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const adminService = {
     /**
@@ -77,19 +78,39 @@ export const adminService = {
     },
 
     /**
-     * Get all admins
+     * Get all admins with pagination
      */
-    async getAll(): Promise<AdminWithDetails[]> {
-        const admins = await prisma.admin.findMany({
-            include: {
-                user: true,
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
+    async getAll(pagination?: PaginationParams): Promise<PaginationResult<AdminWithDetails>> {
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
 
-        return admins as AdminWithDetails[];
+        // Get total count and paginated results in parallel
+        const [total, admins] = await Promise.all([
+            prisma.admin.count(),
+            prisma.admin.findMany({
+                include: {
+                    user: true,
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                skip,
+                take,
+            }),
+        ]);
+
+        return {
+            data: admins as AdminWithDetails[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**

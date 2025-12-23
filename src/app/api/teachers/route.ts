@@ -4,6 +4,7 @@ import { teacherService, createTeacherSchema } from '@/modules/teachers';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
 export async function GET(request: Request) {
     try {
@@ -23,14 +24,24 @@ export async function GET(request: Request) {
         const search = searchParams.get('search') || undefined;
         const batchId = searchParams.get('batchId') || undefined;
 
-        const teachers = await teacherService.getAll({
-            search,
-            batchId,
+        // Parse pagination
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
         });
+
+        const result = await teacherService.getAll(
+            {
+                search,
+                batchId,
+            },
+            pagination
+        );
 
         return NextResponse.json({
             success: true,
-            data: teachers,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(

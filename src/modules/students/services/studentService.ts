@@ -9,6 +9,7 @@ import type {
     StudentFilters,
     StudentStats,
 } from '../types/student.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const studentService = {
     /**
@@ -92,9 +93,12 @@ export const studentService = {
     },
 
     /**
-     * Get all students with filters
+     * Get all students with filters and pagination
      */
-    async getAll(filters?: StudentFilters): Promise<Student[]> {
+    async getAll(
+        filters?: StudentFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Student>> {
         const where: any = {};
 
         if (filters?.batchId) {
@@ -113,16 +117,36 @@ export const studentService = {
             where.user = { isActive: filters.isActive };
         }
 
-        const students = await prisma.student.findMany({
-            where,
-            include: {
-                user: true,
-                batch: true,
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
 
-        return students as Student[];
+        // Get total count and paginated results in parallel
+        const [total, students] = await Promise.all([
+            prisma.student.count({ where }),
+            prisma.student.findMany({
+                where,
+                include: {
+                    user: true,
+                    batch: true,
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+        ]);
+
+        return {
+            data: students as Student[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
@@ -136,6 +160,7 @@ export const studentService = {
                 batch: true,
             },
             orderBy: { name: 'asc' },
+            take: 1000, // Enforce maximum limit
         });
 
         return students as Student[];

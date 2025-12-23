@@ -4,6 +4,7 @@ import { batchService, createBatchSchema } from '@/modules/batches';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
 export async function GET(request: Request) {
     try {
@@ -23,11 +24,21 @@ export async function GET(request: Request) {
         const academicYearId = searchParams.get('academicYearId') || undefined;
         const search = searchParams.get('search') || undefined;
 
-        const batches = await batchService.getAll({ academicYearId, search });
+        // Parse pagination
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
+        });
+
+        const result = await batchService.getAll(
+            { academicYearId, search },
+            pagination
+        );
 
         return NextResponse.json({
             success: true,
-            data: batches,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(

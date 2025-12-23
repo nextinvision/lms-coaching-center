@@ -4,8 +4,9 @@ import { adminService, createAdminSchema } from '@/modules/admins';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         // Check authentication - only admin can view admins
         const cookieStore = await cookies();
@@ -20,11 +21,19 @@ export async function GET() {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
         }
 
-        const admins = await adminService.getAll();
+        // Parse pagination
+        const { searchParams } = new URL(request.url);
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
+        });
+
+        const result = await adminService.getAll(pagination);
 
         return NextResponse.json({
             success: true,
-            data: admins,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(

@@ -4,6 +4,7 @@ import { studentService, createStudentSchema } from '@/modules/students';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
 export async function GET(request: Request) {
     try {
@@ -28,11 +29,21 @@ export async function GET(request: Request) {
             ? searchParams.get('isActive') === 'true'
             : undefined;
 
-        const students = await studentService.getAll({ batchId, search, isActive });
+        // Parse pagination
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
+        });
+
+        const result = await studentService.getAll(
+            { batchId, search, isActive },
+            pagination
+        );
 
         return NextResponse.json({
             success: true,
-            data: students,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(

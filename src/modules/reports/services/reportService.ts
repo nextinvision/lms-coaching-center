@@ -1,5 +1,6 @@
 // Report Service
 import prisma from '@/core/database/prisma';
+import { Prisma } from '@prisma/client';
 import type {
     AttendanceReportFilters,
     AttendanceReportData,
@@ -15,7 +16,7 @@ export const reportService = {
      * Get attendance report
      */
     async getAttendanceReport(filters: AttendanceReportFilters): Promise<BatchAttendanceReport[]> {
-        const where: any = {};
+        const where: Prisma.AttendanceWhereInput = {};
 
         if (filters.batchId) {
             where.batchId = filters.batchId;
@@ -46,6 +47,8 @@ export const reportService = {
                 },
                 batch: true,
             },
+            take: 1000, // Enforce maximum limit for reports
+            orderBy: { date: 'desc' },
         });
 
         // Group by batch
@@ -120,19 +123,16 @@ export const reportService = {
      * Get performance report
      */
     async getPerformanceReport(filters: PerformanceReportFilters): Promise<BatchPerformanceReport[]> {
-        const where: any = {};
+        const where: Prisma.TestSubmissionWhereInput = {};
 
-        if (filters.batchId) {
-            where.test = {
-                batchId: filters.batchId,
-            };
-        }
-
-        if (filters.subjectId) {
-            where.test = {
-                ...where.test,
-                subjectId: filters.subjectId,
-            };
+        if (filters.batchId || filters.subjectId) {
+            where.test = {};
+            if (filters.batchId) {
+                where.test.batchId = filters.batchId;
+            }
+            if (filters.subjectId) {
+                where.test.subjectId = filters.subjectId;
+            }
         }
 
         if (filters.testId) {
@@ -165,6 +165,8 @@ export const reportService = {
                     },
                 },
             },
+            take: 1000, // Enforce maximum limit for reports
+            orderBy: { submittedAt: 'desc' },
         });
 
         // Group by batch
@@ -252,28 +254,36 @@ export const reportService = {
      * Get report statistics
      */
     async getStats(): Promise<ReportStats> {
-        const [totalStudents, totalBatches, totalTests, attendances, submissions] = await Promise.all([
+        // Use aggregations instead of fetching all records for stats
+        const [totalStudents, totalBatches, totalTests, attendanceStats, submissionStats] = await Promise.all([
             prisma.student.count(),
             prisma.batch.count(),
             prisma.test.count(),
-            prisma.attendance.findMany({
-                include: {
-                    student: true,
-                },
+            // Use aggregation instead of fetching all records
+            prisma.attendance.groupBy({
+                by: ['studentId', 'present'],
+                _count: true,
             }),
-            prisma.testSubmission.findMany(),
+            // Use aggregation for submission stats
+            prisma.testSubmission.aggregate({
+                _avg: {
+                    obtainedMarks: true,
+                    totalMarks: true,
+                },
+                _count: true,
+            }),
         ]);
 
-        // Calculate average attendance
+        // Calculate attendance from aggregated data
         const attendanceMap = new Map<string, { total: number; present: number }>();
-        attendances.forEach((attendance) => {
-            const key = attendance.studentId;
-            const current = attendanceMap.get(key) || { total: 0, present: 0 };
-            current.total++;
-            if (attendance.present) current.present++;
-            attendanceMap.set(key, current);
+        attendanceStats.forEach((stat) => {
+            const current = attendanceMap.get(stat.studentId) || { total: 0, present: 0 };
+            current.total += stat._count;
+            if (stat.present) current.present += stat._count;
+            attendanceMap.set(stat.studentId, current);
         });
 
+        // Calculate average attendance from aggregated data
         const attendancePercentages = Array.from(attendanceMap.values()).map(
             (a) => (a.present / a.total) * 100
         );
@@ -282,13 +292,10 @@ export const reportService = {
                 ? attendancePercentages.reduce((sum, p) => sum + p, 0) / attendancePercentages.length
                 : 0;
 
-        // Calculate average performance
-        const performancePercentages = submissions.map(
-            (s) => (s.obtainedMarks / s.totalMarks) * 100
-        );
+        // Calculate average performance from aggregated data
         const averagePerformance =
-            performancePercentages.length > 0
-                ? performancePercentages.reduce((sum, p) => sum + p, 0) / performancePercentages.length
+            submissionStats._avg.obtainedMarks && submissionStats._avg.totalMarks
+                ? (submissionStats._avg.obtainedMarks / submissionStats._avg.totalMarks) * 100
                 : 0;
 
         return {

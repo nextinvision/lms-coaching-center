@@ -8,6 +8,7 @@ import type {
     AssignmentFilters,
     AssignmentStats,
 } from '../types/homework.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const homeworkService = {
     /**
@@ -79,9 +80,12 @@ export const homeworkService = {
     },
 
     /**
-     * Get all assignments with filters
+     * Get all assignments with filters and pagination
      */
-    async getAll(filters?: AssignmentFilters): Promise<Assignment[]> {
+    async getAll(
+        filters?: AssignmentFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Assignment>> {
         const where: any = {};
 
         if (filters?.batchId) {
@@ -99,30 +103,52 @@ export const homeworkService = {
             ];
         }
 
-        const assignments = await prisma.assignment.findMany({
-            where,
-            include: {
-                batch: true,
-                subject: true,
-                createdBy: {
-                    include: {
-                        user: true,
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
+
+        // Get total count and paginated results in parallel
+        const [total, assignments] = await Promise.all([
+            prisma.assignment.count({ where }),
+            prisma.assignment.findMany({
+                where,
+                include: {
+                    batch: true,
+                    subject: true,
+                    createdBy: {
+                        include: {
+                            user: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                skip,
+                take,
+            }),
+        ]);
 
-        return assignments as Assignment[];
+        return {
+            data: assignments as Assignment[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
-     * Get assignments by batch
+     * Get assignments by batch (with default pagination)
      */
     async getByBatch(batchId: string): Promise<Assignment[]> {
-        return this.getAll({ batchId });
+        // Use getAll with default pagination to ensure limits
+        const result = await this.getAll({ batchId }, { page: 1, limit: 100, skip: 0 });
+        return result.data;
     },
 
     /**
@@ -180,6 +206,7 @@ export const homeworkService = {
                 batch: true,
                 submissions: true,
             },
+            take: 1000, // Enforce maximum limit
         });
 
         const totalAssignments = assignments.length;

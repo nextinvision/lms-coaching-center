@@ -4,6 +4,7 @@ import { noticeService, createNoticeSchema } from '@/modules/notices';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { parsePaginationQuery } from '@/shared/utils/pagination';
 
 export async function GET(request: Request) {
     try {
@@ -25,16 +26,26 @@ export async function GET(request: Request) {
         const isActive = searchParams.get('isActive');
         const search = searchParams.get('search') || undefined;
 
-        const notices = await noticeService.getAll({
-            batchId: batchId === '' ? undefined : batchId,
-            type: type as any,
-            isActive: isActive !== null ? isActive === 'true' : undefined,
-            search,
+        // Parse pagination
+        const pagination = parsePaginationQuery({
+            page: searchParams.get('page') || undefined,
+            limit: searchParams.get('limit') || undefined,
         });
+
+        const result = await noticeService.getAll(
+            {
+                batchId: batchId === '' ? undefined : batchId,
+                type: type as any,
+                isActive: isActive !== null ? isActive === 'true' : undefined,
+                search,
+            },
+            pagination
+        );
 
         return NextResponse.json({
             success: true,
-            data: notices,
+            data: result.data,
+            pagination: result.pagination,
         });
     } catch (error) {
         return NextResponse.json(
@@ -62,9 +73,11 @@ export async function POST(request: Request) {
         const validatedData = createNoticeSchema.parse(body);
         
         // Convert type string to NoticeType enum
+        // expiresAt is already converted to ISO format by the schema transform
         const data = {
             ...validatedData,
             type: validatedData.type as any,
+            expiresAt: validatedData.expiresAt || null,
         };
 
         const notice = await noticeService.create(data);

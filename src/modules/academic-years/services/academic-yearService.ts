@@ -7,6 +7,7 @@ import type {
     AcademicYearFilters,
     AcademicYearStats,
 } from '../types/academic-year.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const academicYearService = {
     /**
@@ -60,9 +61,12 @@ export const academicYearService = {
     },
 
     /**
-     * Get all academic years with filters
+     * Get all academic years with filters and pagination
      */
-    async getAll(filters?: AcademicYearFilters): Promise<AcademicYear[]> {
+    async getAll(
+        filters?: AcademicYearFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<AcademicYear>> {
         const where: any = {};
 
         if (filters?.isActive !== undefined) {
@@ -76,17 +80,37 @@ export const academicYearService = {
             };
         }
 
-        const academicYears = await prisma.academicYear.findMany({
-            where,
-            include: {
-                batches: true,
-            },
-            orderBy: {
-                year: 'desc',
-            },
-        });
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
 
-        return academicYears as AcademicYear[];
+        // Get total count and paginated results in parallel
+        const [total, academicYears] = await Promise.all([
+            prisma.academicYear.count({ where }),
+            prisma.academicYear.findMany({
+                where,
+                include: {
+                    batches: true,
+                },
+                orderBy: {
+                    year: 'desc',
+                },
+                skip,
+                take,
+            }),
+        ]);
+
+        return {
+            data: academicYears as AcademicYear[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
@@ -192,6 +216,7 @@ export const academicYearService = {
                     },
                 },
             },
+            take: 1000, // Enforce maximum limit
         });
 
         const totalAcademicYears = academicYears.length;

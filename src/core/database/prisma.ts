@@ -5,6 +5,11 @@ const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined;
 };
 
+/**
+ * Create Prisma client instance
+ * Note: Query limits are enforced explicitly in service methods.
+ * See queryOptimizer.ts for limit constants and helper functions.
+ */
 export const prisma =
     globalForPrisma.prisma ??
     new PrismaClient({

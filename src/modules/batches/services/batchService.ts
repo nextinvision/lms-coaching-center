@@ -8,6 +8,7 @@ import type {
     BatchFilters,
     BatchStats,
 } from '../types/batch.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const batchService = {
     /**
@@ -77,9 +78,12 @@ export const batchService = {
     },
 
     /**
-     * Get all batches with filters
+     * Get all batches with filters and pagination
      */
-    async getAll(filters?: BatchFilters): Promise<Batch[]> {
+    async getAll(
+        filters?: BatchFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Batch>> {
         const where: any = {};
 
         if (filters?.academicYearId) {
@@ -90,22 +94,42 @@ export const batchService = {
             where.name = { contains: filters.search, mode: 'insensitive' };
         }
 
-        const batches = await prisma.batch.findMany({
-            where,
-            include: {
-                academicYear: true,
-                students: {
-                    include: { user: true },
-                },
-                subjects: true,
-                teachers: {
-                    include: { teacher: { include: { user: true } } },
-                },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
 
-        return batches as Batch[];
+        // Get total count and paginated results in parallel
+        const [total, batches] = await Promise.all([
+            prisma.batch.count({ where }),
+            prisma.batch.findMany({
+                where,
+                include: {
+                    academicYear: true,
+                    students: {
+                        include: { user: true },
+                    },
+                    subjects: true,
+                    teachers: {
+                        include: { teacher: { include: { user: true } } },
+                    },
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+        ]);
+
+        return {
+            data: batches as Batch[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**

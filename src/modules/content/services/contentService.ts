@@ -7,6 +7,7 @@ import type {
     ContentFilters,
     ContentStats,
 } from '../types/content.types';
+import type { PaginationParams, PaginationResult } from '@/shared/utils/pagination';
 
 export const contentService = {
     /**
@@ -71,9 +72,12 @@ export const contentService = {
     },
 
     /**
-     * Get all content with filters
+     * Get all content with filters and pagination
      */
-    async getAll(filters?: ContentFilters): Promise<Content[]> {
+    async getAll(
+        filters?: ContentFilters,
+        pagination?: PaginationParams
+    ): Promise<PaginationResult<Content>> {
         const where: any = {};
 
         if (filters?.batchId) {
@@ -104,32 +108,54 @@ export const contentService = {
             ];
         }
 
-        const content = await prisma.content.findMany({
-            where,
-            include: {
-                batch: {
-                    include: {
-                        academicYear: true,
-                    },
-                },
-                subject: true,
-                uploadedBy: {
-                    include: {
-                        user: true,
-                    },
-                },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+        // Pagination parameters
+        const { page = 1, limit = 10, skip = 0 } = pagination || {};
+        const take = Math.min(limit, 1000); // Enforce max limit
 
-        return content as Content[];
+        // Get total count and paginated results in parallel
+        const [total, content] = await Promise.all([
+            prisma.content.count({ where }),
+            prisma.content.findMany({
+                where,
+                include: {
+                    batch: {
+                        include: {
+                            academicYear: true,
+                        },
+                    },
+                    subject: true,
+                    uploadedBy: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+        ]);
+
+        return {
+            data: content as Content[],
+            pagination: {
+                page,
+                limit: take,
+                total,
+                totalPages: Math.ceil(total / take),
+                hasNext: page * take < total,
+                hasPrev: page > 1,
+            },
+        };
     },
 
     /**
-     * Get content by batch
+     * Get content by batch (with default pagination)
      */
     async getByBatch(batchId: string): Promise<Content[]> {
-        return this.getAll({ batchId });
+        // Use getAll with default pagination to ensure limits
+        const result = await this.getAll({ batchId }, { page: 1, limit: 100, skip: 0 });
+        return result.data;
     },
 
     /**
