@@ -6,15 +6,20 @@ import { DashboardLayout } from '@/shared/components/layout/DashboardLayout';
 import { TestList } from '@/modules/tests';
 import { Button } from '@/shared/components/ui/Button';
 import { useBatches } from '@/modules/batches';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 
 export default function TeacherTestsPage() {
     const { batches } = useBatches();
-    const [selectedBatchId, setSelectedBatchId] = useState<string | null>(
-        batches?.[0]?.id || null
-    );
+    const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+
+    // Update selectedBatchId when batches load
+    useEffect(() => {
+        if (batches && batches.length > 0 && !selectedBatchId) {
+            setSelectedBatchId(batches[0].id);
+        }
+    }, [batches, selectedBatchId]);
 
     return (
         <ProtectedRoute requiredPermissions={['create_tests']}>

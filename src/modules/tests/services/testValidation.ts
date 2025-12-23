@@ -1,6 +1,40 @@
 // Test Validation Schemas
 import { z } from 'zod';
 
+// Custom datetime schema that accepts datetime-local input format
+// datetime-local returns "YYYY-MM-DDTHH:mm" but Zod expects full ISO format
+const optionalDatetimeSchema = z
+    .string()
+    .optional()
+    .nullable()
+    .transform((val) => {
+        // Handle empty string, null, or undefined
+        if (!val || val === '') return null;
+
+        // If it's already a full ISO string, return as is
+        if (val.includes('Z') || val.includes('+') || val.includes('T') && val.split('T')[1].includes(':') && val.split('T')[1].split(':').length >= 3) {
+            return val;
+        }
+
+        // Transform datetime-local format (YYYY-MM-DDTHH:mm) to ISO format
+        // Add seconds if missing
+        const hasSeconds = val.split('T')[1]?.split(':').length >= 3;
+        const isoString = hasSeconds ? `${val}:00` : `${val}:00`;
+
+        // Validate it's a valid date
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) {
+            throw new Error('Invalid date format');
+        }
+
+        return isoString;
+    })
+    .refine((val) => {
+        if (!val) return true; // null is valid for optional fields
+        const date = new Date(val);
+        return !isNaN(date.getTime());
+    }, 'Invalid datetime');
+
 export const createTestSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     description: z.string().optional(),
@@ -9,8 +43,8 @@ export const createTestSchema = z.object({
     subjectId: z.string().optional().nullable(),
     durationMinutes: z.number().positive().optional().nullable(),
     totalMarks: z.number().positive('Total marks must be positive'),
-    startDate: z.string().datetime().optional().nullable(),
-    endDate: z.string().datetime().optional().nullable(),
+    startDate: optionalDatetimeSchema,
+    endDate: optionalDatetimeSchema,
 });
 
 export const createQuestionSchema = z.object({
@@ -38,8 +72,8 @@ export const updateTestSchema = z.object({
     type: z.enum(['PRACTICE', 'WEEKLY', 'MONTHLY']).optional(),
     durationMinutes: z.number().positive().optional().nullable(),
     totalMarks: z.number().positive().optional(),
-    startDate: z.string().datetime().optional().nullable(),
-    endDate: z.string().datetime().optional().nullable(),
+    startDate: optionalDatetimeSchema,
+    endDate: optionalDatetimeSchema,
     isActive: z.boolean().optional(),
 });
 
