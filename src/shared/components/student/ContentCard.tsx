@@ -66,7 +66,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ content }) => {
                     </div>
 
                     {/* Date */}
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-600">
                         Added {new Date(content.createdAt).toLocaleDateString()}
                     </p>
                 </div>

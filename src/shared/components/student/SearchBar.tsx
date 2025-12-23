@@ -41,7 +41,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 value={input}
                 type="text"
                 placeholder={placeholder}
-                className="w-full h-full outline-none text-gray-500/80 px-2"
+                className="w-full h-full outline-none text-gray-700 px-2"
             />
             <button
                 type="submit"

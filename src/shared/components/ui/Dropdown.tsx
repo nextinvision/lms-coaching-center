@@ -83,12 +83,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
                     triggerClassName
                 )}
             >
-                <span className={cn('block truncate', !selectedOption && 'text-gray-400')}>
+                <span className={cn('block truncate', !selectedOption && 'text-gray-500')}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
                 <ChevronDown
                     className={cn(
-                        'h-4 w-4 text-gray-400 transition-transform',
+                        'h-4 w-4 text-gray-600 transition-transform',
                         isOpen && 'transform rotate-180'
                     )}
                 />

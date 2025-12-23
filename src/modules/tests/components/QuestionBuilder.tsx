@@ -105,7 +105,7 @@ export function QuestionBuilder({ questions, onQuestionsChange }: QuestionBuilde
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm">{question.questionText}</p>
-                                <p className="text-xs text-gray-500 mt-2">
+                                <p className="text-xs text-gray-600 mt-2">
                                     Marks: {question.marks}
                                 </p>
                             </CardContent>

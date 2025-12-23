@@ -34,7 +34,7 @@ const ContentSection: React.FC<ContentSectionProps> = ({
     return (
         <div className="py-16 md:px-40 px-8">
             <h2 className="text-3xl font-medium text-gray-800">{title}</h2>
-            <p className="text-sm md:text-base text-gray-500 mt-3">
+            <p className="text-sm md:text-base text-gray-600 mt-3">
                 {description}
             </p>
 
@@ -50,14 +50,14 @@ const ContentSection: React.FC<ContentSectionProps> = ({
                         <Link
                             href="/content"
                             onClick={() => window.scrollTo(0, 0)}
-                            className="inline-block text-gray-500 border border-gray-500/30 px-10 py-3 rounded hover:bg-gray-50 transition-colors"
+                            className="inline-block text-gray-700 border border-gray-500/30 px-10 py-3 rounded hover:bg-gray-50 transition-colors"
                         >
                             View All Content
                         </Link>
                     )}
                 </>
             ) : (
-                <div className="text-center py-16 text-gray-500">
+                <div className="text-center py-16 text-gray-600">
                     <p>No content available at the moment.</p>
                     <p className="text-sm mt-2">Check back later for new study materials.</p>
                 </div>

@@ -23,7 +23,7 @@ const Companies = () => {
                 transition={{ duration: 0.6 }}
                 className="max-w-6xl mx-auto"
             >
-                <p className="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-8 text-center">
+                <p className="text-sm uppercase tracking-wider text-gray-600 font-semibold mb-8 text-center">
                     Trusted by learners from top companies
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">

@@ -32,7 +32,7 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                 setIsLoading(true);
                 const queryParams = new URLSearchParams();
                 queryParams.append('isActive', 'true');
-                
+
                 // For students, filter by their batch
                 if (userRole === 'STUDENT' && batchId) {
                     queryParams.append('batchId', batchId);
@@ -168,7 +168,7 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                             className="p-1 rounded hover:bg-gray-100"
                             title="Close"
                         >
-                            <X className="h-4 w-4 text-gray-500" />
+                            <X className="h-4 w-4 text-gray-600" />
                         </button>
                     </div>
 
@@ -179,7 +179,7 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                                 <Loader text="Loading notifications..." />
                             </div>
                         ) : notices.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">
+                            <div className="p-8 text-center text-gray-600">
                                 <Bell className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                                 <p className="text-sm">No new notifications</p>
                             </div>
@@ -192,8 +192,8 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                                             userRole === 'ADMIN'
                                                 ? `/admin/notices/${notice.id}`
                                                 : userRole === 'TEACHER'
-                                                ? `/teacher/notices`
-                                                : `/student/notices`
+                                                    ? `/teacher/notices`
+                                                    : `/student/notices`
                                         }
                                         onClick={() => setIsOpen(false)}
                                         className="block p-4 hover:bg-gray-50 transition-colors"
@@ -210,7 +210,7 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                                                         {getNoticeTypeLabel(notice.type)}
                                                     </span>
                                                     {notice.priority > 0 && (
-                                                        <span className="text-xs text-gray-500">
+                                                        <span className="text-xs text-gray-600">
                                                             Priority: {notice.priority}
                                                         </span>
                                                     )}
@@ -219,7 +219,7 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                                                 <p className="text-sm text-gray-600 line-clamp-2 mt-1">
                                                     {notice.content}
                                                 </p>
-                                                <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                                <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
                                                     <span>{formatDate(notice.createdAt)}</span>
                                                     {notice.batch && (
                                                         <>
@@ -229,7 +229,7 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                                                     )}
                                                 </div>
                                             </div>
-                                            <ExternalLink className="h-4 w-4 text-gray-400 shrink-0 mt-1" />
+                                            <ExternalLink className="h-4 w-4 text-gray-600 shrink-0 mt-1" />
                                         </div>
                                     </Link>
                                 ))}
@@ -245,8 +245,8 @@ export function NotificationDropdown({ userRole, batchId }: NotificationDropdown
                                     userRole === 'ADMIN'
                                         ? '/admin/notices'
                                         : userRole === 'TEACHER'
-                                        ? '/teacher/notices'
-                                        : '/student/notices'
+                                            ? '/teacher/notices'
+                                            : '/student/notices'
                                 }
                                 onClick={() => setIsOpen(false)}
                                 className="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium"

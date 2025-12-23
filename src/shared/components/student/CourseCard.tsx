@@ -137,7 +137,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
                                 ))}
                             </div>
                         </div>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-600">
                             ({course.courseRatings.length} reviews)
                         </span>
                     </div>

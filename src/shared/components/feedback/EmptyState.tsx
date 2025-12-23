@@ -27,10 +27,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     className,
 }) => {
     const defaultIcons = {
-        default: <Inbox className="h-12 w-12 text-gray-400" />,
-        search: <Search className="h-12 w-12 text-gray-400" />,
-        inbox: <Inbox className="h-12 w-12 text-gray-400" />,
-        file: <FileX className="h-12 w-12 text-gray-400" />,
+        default: <Inbox className="h-12 w-12 text-gray-500" />,
+        search: <Search className="h-12 w-12 text-gray-500" />,
+        inbox: <Inbox className="h-12 w-12 text-gray-500" />,
+        file: <FileX className="h-12 w-12 text-gray-500" />,
     };
 
     const displayIcon = icon || defaultIcons[variant];

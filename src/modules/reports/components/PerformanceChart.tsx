@@ -32,7 +32,7 @@ export function PerformanceChart({ data, chartType = 'bar' }: PerformanceChartPr
     if (!data || data.length === 0) {
         return (
             <Card>
-                <CardContent className="py-12 text-center text-gray-500">
+                <CardContent className="py-12 text-center text-gray-600">
                     No data available for visualization
                 </CardContent>
             </Card>

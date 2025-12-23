@@ -29,7 +29,7 @@ export function StatsCard({
         if (!trend) return null;
 
         if (trend.value === 0) {
-            return <Minus className="h-4 w-4 text-gray-500" />;
+            return <Minus className="h-4 w-4 text-gray-600" />;
         }
 
         return trend.isPositive ? (
@@ -63,11 +63,11 @@ export function StatsCard({
                             <span className={cn('text-sm font-medium', getTrendColor())}>
                                 {Math.abs(trend.value).toFixed(1)}%
                             </span>
-                            <span className="text-xs text-gray-500">vs last period</span>
+                            <span className="text-xs text-gray-600">vs last period</span>
                         </div>
                     )}
                     {description && (
-                        <p className="text-xs text-gray-500 mt-1">{description}</p>
+                        <p className="text-xs text-gray-600 mt-1">{description}</p>
                     )}
                 </div>
             </CardContent>
