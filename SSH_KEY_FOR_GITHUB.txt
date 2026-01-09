@@ -1,0 +1,18 @@
+SSH Public Key for GitHub
+==========================
+
+Copy this entire key and add it to GitHub at:
+https://github.com/settings/keys
+
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDWzrjROuDlu72alVXfJryB5savpvLpsNhHe+wha1Dbb github-push
+
+Steps to Add:
+1. Go to: https://github.com/settings/keys
+2. Click "New SSH key"
+3. Title: "Server SSH Key" (or any name you prefer)
+4. Key type: Authentication Key
+5. Key: Paste the entire key above (starting with ssh-ed25519)
+6. Click "Add SSH key"
+
+After adding, come back and we'll push the code!
+

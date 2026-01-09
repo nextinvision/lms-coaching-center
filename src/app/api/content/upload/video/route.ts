@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
-import { cloudinaryStorage } from '@/core/storage/cloudinary';
+import { minioStorage } from '@/core/storage/minio';
 
 export async function POST(request: Request) {
     try {
@@ -42,14 +42,14 @@ export async function POST(request: Request) {
         let folder = `content/batch-${batchId}`;
         if (subjectId) folder += `/subject-${subjectId}`;
 
-        // Upload to Cloudinary
-        const { url, publicId, thumbnailUrl } = await cloudinaryStorage.uploadVideo(file, folder);
+        // Upload to MinIO
+        const { url, path, thumbnailUrl } = await minioStorage.uploadVideo(file, folder);
 
         return NextResponse.json({
             success: true,
             data: {
                 url,
-                publicId,
+                publicId: path, // Using path as publicId for backward compatibility
                 thumbnailUrl,
                 fileName: file.name,
                 fileSize: file.size,

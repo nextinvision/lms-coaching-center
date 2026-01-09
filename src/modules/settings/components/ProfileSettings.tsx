@@ -106,7 +106,7 @@ export function ProfileSettings() {
                 throw new Error('File size exceeds 5MB limit');
             }
 
-            // Upload to Cloudinary
+            // Upload to MinIO
             const uploadFormData = new FormData();
             uploadFormData.append('file', file);
 

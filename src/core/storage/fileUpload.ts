@@ -1,5 +1,5 @@
 // File Upload Utilities
-import { cloudinaryStorage } from './cloudinary';
+import { minioStorage } from './minio';
 import { youtubeUtils } from './youtube';
 
 export type FileType = 'PDF' | 'IMAGE' | 'VIDEO';
@@ -39,7 +39,7 @@ export const fileUpload = {
     },
 
     /**
-     * Upload PDF to Cloudinary
+     * Upload PDF to MinIO
      */
     async uploadPDF(
         file: File,
@@ -49,19 +49,19 @@ export const fileUpload = {
         if (metadata.subjectId) folder += `/subject-${metadata.subjectId}`;
         if (metadata.chapter) folder += `/chapter-${metadata.chapter}`;
 
-        const result = await cloudinaryStorage.uploadPDF(file, folder);
+        const result = await minioStorage.uploadPDF(file, folder);
 
         return {
             type: 'PDF',
             url: result.url,
-            fileId: result.publicId,
+            fileId: result.path,
             fileName: file.name,
             fileSize: file.size,
         };
     },
 
     /**
-     * Upload Image to Cloudinary
+     * Upload Image to MinIO
      */
     async uploadImage(
         file: File,
@@ -70,12 +70,12 @@ export const fileUpload = {
         const folder = `content/batch-${metadata.batchId}${metadata.subjectId ? `/subject-${metadata.subjectId}` : ''
             }`;
 
-        const result = await cloudinaryStorage.uploadImage(file, folder);
+        const result = await minioStorage.uploadImage(file, folder);
 
         return {
             type: 'IMAGE',
             url: result.url,
-            fileId: result.publicId,
+            fileId: result.path,
             fileName: file.name,
             fileSize: file.size,
             thumbnailUrl: result.thumbnailUrl,
@@ -126,7 +126,7 @@ export const fileUpload = {
     },
 
     /**
-     * Upload Video to Cloudinary
+     * Upload Video to MinIO
      */
     async uploadVideo(
         file: File,
@@ -135,12 +135,12 @@ export const fileUpload = {
         let folder = `content/batch-${metadata.batchId}`;
         if (metadata.subjectId) folder += `/subject-${metadata.subjectId}`;
 
-        const result = await cloudinaryStorage.uploadVideo(file, folder);
+        const result = await minioStorage.uploadVideo(file, folder);
 
         return {
             type: 'VIDEO',
             url: result.url,
-            fileId: result.publicId,
+            fileId: result.path,
             fileName: file.name,
             fileSize: file.size,
             thumbnailUrl: result.thumbnailUrl,

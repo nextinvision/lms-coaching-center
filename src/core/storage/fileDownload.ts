@@ -1,5 +1,5 @@
 // File Download Utilities
-import { supabaseStorage } from './supabase';
+import { minioStorage } from './minio';
 
 export const fileDownload = {
     /**
@@ -27,11 +27,12 @@ export const fileDownload = {
     },
 
     /**
-     * Download PDF from Supabase
+     * Download PDF from MinIO
      */
     async downloadPDF(path: string, fileName: string): Promise<void> {
         try {
-            const blob = await supabaseStorage.downloadFile(path);
+            const buffer = await minioStorage.downloadFile(path);
+            const blob = new Blob([new Uint8Array(buffer)]);
             const url = window.URL.createObjectURL(blob);
 
             const link = document.createElement('a');

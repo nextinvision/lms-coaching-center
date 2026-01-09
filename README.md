@@ -21,7 +21,7 @@ A comprehensive Learning Management System designed for offline coaching centers
 - ✅ **Role-Based Access Control** - Student, Teacher, Admin roles
 - ✅ **Bilingual Support** - English and Assamese
 - ✅ **Responsive Design** - Works on mobile and desktop
-- ✅ **File Storage** - Supabase for PDFs, Cloudinary for images
+- ✅ **File Storage** - MinIO for all file types (PDFs, images, videos)
 - ✅ **Performance Optimized** - Code splitting, lazy loading, caching
 - ✅ **Security** - Rate limiting, CSRF protection, input sanitization
 - ✅ **Error Handling** - Comprehensive error logging and handling
@@ -30,11 +30,11 @@ A comprehensive Learning Management System designed for offline coaching centers
 
 - **Framework:** Next.js 14 (App Router)
 - **Language:** TypeScript
-- **Database:** PostgreSQL (Supabase)
+- **Database:** PostgreSQL (Local or any PostgreSQL instance)
 - **ORM:** Prisma
 - **State Management:** Zustand
 - **Styling:** Tailwind CSS
-- **File Storage:** Supabase Storage (PDFs), Cloudinary (Images)
+- **File Storage:** MinIO (Local S3-compatible storage)
 - **Authentication:** JWT
 - **Validation:** Zod
 
@@ -43,11 +43,13 @@ A comprehensive Learning Management System designed for offline coaching centers
 ### Prerequisites
 
 - Node.js 20.16.0 or higher
-- PostgreSQL database (Supabase recommended)
-- Cloudinary account
-- Supabase account
+- Docker and Docker Compose (for local PostgreSQL and MinIO)
+- PostgreSQL database (local or remote)
+- MinIO (S3-compatible storage, included in docker-compose)
 
-### Installation
+> **Note:** For local development, see [SETUP.md](./SETUP.md) for detailed setup instructions using Docker Compose.
+
+### Quick Start (Local Development)
 
 1. Clone the repository:
 ```bash
@@ -55,30 +57,24 @@ git clone <repository-url>
 cd lms-coaching-center
 ```
 
-2. Install dependencies:
+2. Start PostgreSQL and MinIO with Docker Compose:
+```bash
+docker-compose up -d
+```
+
+3. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+4. Set up environment variables:
 ```bash
 cp .env.example .env
 ```
 
-4. Configure `.env` file:
-```env
-DATABASE_URL="postgresql://..."
-JWT_SECRET="your-secret-key"
-NEXT_PUBLIC_SUPABASE_URL="https://..."
-SUPABASE_SERVICE_ROLE_KEY="..."
-CLOUDINARY_CLOUD_NAME="..."
-CLOUDINARY_API_KEY="..."
-CLOUDINARY_API_SECRET="..."
-```
-
 5. Set up database:
 ```bash
-npx prisma migrate dev
+npm run db:migrate
 npm run db:seed
 ```
 
@@ -88,6 +84,8 @@ npm run dev
 ```
 
 7. Open [http://localhost:3000](http://localhost:3000)
+
+For detailed setup instructions, see [SETUP.md](./SETUP.md)
 
 ## Project Structure
 
@@ -153,7 +151,7 @@ src/
 ## Performance
 
 - Code splitting and lazy loading
-- Image optimization with Cloudinary
+- Image optimization (can be enhanced with external image processing service)
 - Database query optimization
 - Caching strategies
 - Pagination for large lists
@@ -173,6 +171,8 @@ Recommended platforms:
 - **Vercel** (Recommended for Next.js)
 - **Railway**
 - **Render**
+
+For local deployment, see [SETUP.md](./SETUP.md)
 
 ## Contributing
 

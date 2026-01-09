@@ -9,8 +9,13 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '9000',
+      },
+      {
         protocol: 'https',
-        hostname: 'res.cloudinary.com',
+        hostname: '*',
       },
     ],
     formats: ['image/avif', 'image/webp'],

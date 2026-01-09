@@ -28,6 +28,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.backup
 
 # vercel
 .vercel
@@ -37,4 +38,21 @@ yarn-error.log*
 next-env.d.ts
 
 # prisma
-/prisma/migrations
+/prisma/migrations/*.sql
+
+# backups (contains sensitive data)
+/backups/
+!backups/.gitkeep
+
+# SSH keys (never commit private keys)
+.github_secret_*.txt
+*.key
+*.pem
+!*.pub
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

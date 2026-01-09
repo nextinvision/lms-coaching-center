@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
-import { cloudinaryStorage } from '@/core/storage/cloudinary';
+import { minioStorage } from '@/core/storage/minio';
 
 export async function POST(request: Request) {
     try {
@@ -45,15 +45,15 @@ export async function POST(request: Request) {
             );
         }
 
-        // Upload to Cloudinary in profiles folder with user ID
+        // Upload to MinIO in profiles folder with user ID
         const folder = `profiles/user-${user.id}`;
-        const { url, publicId, thumbnailUrl } = await cloudinaryStorage.uploadImage(file, folder);
+        const { url, path, thumbnailUrl } = await minioStorage.uploadImage(file, folder);
 
         return NextResponse.json({
             success: true,
             data: {
                 url,
-                publicId,
+                publicId: path, // Using path as publicId for backward compatibility
                 thumbnailUrl: thumbnailUrl || url,
                 fileName: file.name,
                 fileSize: file.size,

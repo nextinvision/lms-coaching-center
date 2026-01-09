@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { authService } from '@/modules/auth';
 import { cookies } from 'next/headers';
-import { cloudinaryStorage } from '@/core/storage/cloudinary';
+import { minioStorage } from '@/core/storage/minio';
 
 export async function POST(request: Request) {
     try {
@@ -44,14 +44,14 @@ export async function POST(request: Request) {
         if (subjectId) folder += `/subject-${subjectId}`;
         if (chapter) folder += `/chapter-${chapter}`;
 
-        // Upload to Cloudinary
-        const { url, publicId } = await cloudinaryStorage.uploadPDF(file, folder);
+        // Upload to MinIO
+        const { url, path } = await minioStorage.uploadPDF(file, folder);
 
         return NextResponse.json({
             success: true,
             data: {
                 url,
-                publicId,
+                publicId: path, // Using path as publicId for backward compatibility
                 fileName: file.name,
                 fileSize: file.size,
             },
