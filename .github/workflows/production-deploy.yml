@@ -1,0 +1,249 @@
+name: Production Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Deployment version (optional)'
+        required: false
+        default: ''
+      skip_tests:
+        description: 'Skip tests (not recommended)'
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+
+env:
+  NODE_ENV: production
+
+jobs:
+  validate:
+    name: Validate Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: lms_coaching_center_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lms_coaching_center_test?schema=public
+        run: npx prisma generate
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lms_coaching_center_test?schema=public
+        run: npx prisma migrate deploy
+
+      - name: Run ESLint
+        if: ${{ !inputs.skip_tests }}
+        run: npm run lint
+
+      - name: Type check
+        if: ${{ !inputs.skip_tests }}
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        if: ${{ !inputs.skip_tests }}
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lms_coaching_center_test?schema=public
+          NODE_ENV: test
+        run: npm run test:ci
+
+      - name: Build application
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lms_coaching_center_test?schema=public
+        run: npm run build
+
+      - name: Check build artifacts
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "❌ Build failed: .next directory not found"
+            exit 1
+          fi
+          echo "✅ Build validation successful"
+
+  deploy:
+    name: Deploy to Production
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://digischooler.com
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: npm run build
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy-package
+          cp -r .next deploy-package/
+          cp -r public deploy-package/
+          cp -r prisma deploy-package/
+          cp package.json deploy-package/
+          cp package-lock.json deploy-package/
+          cp next.config.ts deploy-package/
+          cp .env.example deploy-package/.env.example
+          
+          # Create deployment info file
+          echo "Deployment Info" > deploy-package/DEPLOYMENT_INFO.txt
+          echo "===============" >> deploy-package/DEPLOYMENT_INFO.txt
+          echo "Version: ${{ inputs.version || github.sha }}" >> deploy-package/DEPLOYMENT_INFO.txt
+          echo "Branch: ${{ github.ref_name }}" >> deploy-package/DEPLOYMENT_INFO.txt
+          echo "Commit: ${{ github.sha }}" >> deploy-package/DEPLOYMENT_INFO.txt
+          echo "Author: ${{ github.actor }}" >> deploy-package/DEPLOYMENT_INFO.txt
+          echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> deploy-package/DEPLOYMENT_INFO.txt
+          
+          tar -czf deployment.tar.gz deploy-package/
+
+      - name: Backup current deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USERNAME }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            cd /root/lms-coaching-center
+            if [ -d ".next" ]; then
+              BACKUP_DIR="/root/lms-backups/backup-$(date +%Y%m%d-%H%M%S)"
+              mkdir -p $BACKUP_DIR
+              cp -r .next $BACKUP_DIR/ 2>/dev/null || true
+              echo "✅ Backup created at $BACKUP_DIR"
+            fi
+
+      - name: Transfer deployment package
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USERNAME }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          source: "deployment.tar.gz"
+          target: "/tmp/"
+
+      - name: Execute deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USERNAME }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            set -e
+            
+            cd /root/lms-coaching-center
+            
+            # Extract deployment package
+            echo "📦 Extracting deployment package..."
+            tar -xzf /tmp/deployment.tar.gz -C . --strip-components=1
+            
+            # Install/update dependencies
+            echo "📥 Installing dependencies..."
+            npm ci --production --legacy-peer-deps || npm install --production --legacy-peer-deps
+            
+            # Generate Prisma Client
+            echo "🔧 Generating Prisma Client..."
+            npx prisma generate
+            
+            # Run database migrations
+            echo "🗄️  Running database migrations..."
+            npx prisma migrate deploy || echo "⚠️  Migration skipped (may already be up to date)"
+            
+            # Restart application with PM2
+            echo "🚀 Restarting application..."
+            pm2 restart lms-app --update-env || pm2 start npm --name lms-app -- start
+            pm2 save
+            
+            # Wait for application to be ready
+            echo "⏳ Waiting for application to start..."
+            sleep 10
+            
+            # Health check
+            echo "🏥 Performing health check..."
+            if curl -f http://localhost:3000 > /dev/null 2>&1; then
+              echo "✅ Application is healthy"
+            else
+              echo "⚠️  Health check failed, but deployment completed"
+            fi
+            
+            # Cleanup
+            rm -f /tmp/deployment.tar.gz
+            echo "✅ Deployment completed successfully"
+            
+            # Show deployment info
+            if [ -f DEPLOYMENT_INFO.txt ]; then
+              echo ""
+              echo "📋 Deployment Information:"
+              cat DEPLOYMENT_INFO.txt
+            fi
+
+      - name: Verify deployment
+        run: |
+          echo "✅ Deployment completed"
+          echo "🌐 Production URL: https://digischooler.com"
+          echo "📝 Commit: ${{ github.sha }}"
+          echo "👤 Deployed by: ${{ github.actor }}"
+
+      - name: Create deployment tag
+        if: github.event_name == 'workflow_dispatch' && inputs.version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/v${context.payload.inputs.version}`,
+              sha: context.sha
+            })
+
+

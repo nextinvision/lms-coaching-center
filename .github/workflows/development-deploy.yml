@@ -1,0 +1,91 @@
+name: Development Deployment
+
+on:
+  push:
+    branches:
+      - develop
+      - 'feature/**'
+      - 'fix/**'
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'README.md'
+
+env:
+  NODE_ENV: production
+
+jobs:
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+        run: npm run build
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy-package
+          cp -r .next deploy-package/
+          cp -r public deploy-package/
+          cp -r prisma deploy-package/
+          cp package.json deploy-package/
+          cp package-lock.json deploy-package/
+          cp next.config.ts deploy-package/
+          cp .env.example deploy-package/.env.example
+          tar -czf deployment.tar.gz deploy-package/
+
+      - name: Deploy to Development Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USERNAME }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: ${{ secrets.DEV_SSH_PORT || 22 }}
+          source: "deployment.tar.gz"
+          target: "/tmp/"
+
+      - name: Execute deployment script
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USERNAME }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: ${{ secrets.DEV_SSH_PORT || 22 }}
+          script: |
+            cd /root/lms-coaching-center-dev || mkdir -p /root/lms-coaching-center-dev && cd /root/lms-coaching-center-dev
+            tar -xzf /tmp/deployment.tar.gz -C . --strip-components=1
+            npm ci --production --legacy-peer-deps || npm install --production --legacy-peer-deps
+            npx prisma generate
+            npx prisma migrate deploy
+            pm2 restart lms-app-dev || pm2 start npm --name lms-app-dev -- start
+            pm2 save
+            rm -f /tmp/deployment.tar.gz
+
+      - name: Deployment notification
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to development server"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+
+
